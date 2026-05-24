@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Npgsql;
 using SqlMcp.Tools.Models;
 using SqlMcp.Tools.Security;
@@ -266,7 +267,7 @@ WHERE kcu.table_schema = current_schema()";
     {
         await using var conn = await _dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = isReadOnly ? SqlLimiter.ApplyLimitIfMissing(sql, maxRows, Dialect) : sql;
+        cmd.CommandText = isReadOnly ? ApplyLimitIfMissing(sql, maxRows) : sql;
 
         if (isReadOnly)
         {
@@ -366,4 +367,18 @@ WHERE kcu.table_schema = current_schema()";
             lines.Add(reader.GetString(0));
         return string.Join("\n", lines);
     }
+
+    private static string ApplyLimitIfMissing(string sql, int maxRows)
+    {
+        if (s_limitRegex.IsMatch(sql))
+            return sql;
+
+        var trimmed = sql.TrimEnd();
+        if (trimmed.EndsWith(';'))
+            trimmed = trimmed[..^1];
+
+        return trimmed + $" LIMIT {maxRows}";
+    }
+
+    private static readonly Regex s_limitRegex = new(@"\bLIMIT\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 }

@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using MySqlConnector;
 using SqlMcp.Tools.Models;
 using SqlMcp.Tools.Security;
@@ -200,7 +201,7 @@ WHERE TABLE_SCHEMA = DATABASE() AND REFERENCED_TABLE_NAME IS NOT NULL";
         await using var conn = new MySqlConnection(connectionString);
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = isReadOnly ? SqlLimiter.ApplyLimitIfMissing(sql, maxRows, Dialect) : sql;
+        cmd.CommandText = isReadOnly ? ApplyLimitIfMissing(sql, maxRows) : sql;
 
         if (isReadOnly)
         {
@@ -319,4 +320,18 @@ WHERE TABLE_SCHEMA = DATABASE() AND REFERENCED_TABLE_NAME IS NOT NULL";
         }
         return sb.ToString();
     }
+
+    private static string ApplyLimitIfMissing(string sql, int maxRows)
+    {
+        if (s_limitRegex.IsMatch(sql))
+            return sql;
+
+        var trimmed = sql.TrimEnd();
+        if (trimmed.EndsWith(';'))
+            trimmed = trimmed[..^1];
+
+        return trimmed + $" LIMIT {maxRows}";
+    }
+
+    private static readonly Regex s_limitRegex = new(@"\bLIMIT\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 }

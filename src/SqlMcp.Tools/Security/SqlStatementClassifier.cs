@@ -1,6 +1,6 @@
 namespace SqlMcp.Tools.Security;
 
-public sealed class SqlStatementClassifier : ISqlStatementClassifier
+public sealed class SqlStatementClassifier
 {
     public SqlStatementType Classify(string sql)
     {
@@ -9,16 +9,14 @@ public sealed class SqlStatementClassifier : ISqlStatementClassifier
         var tokens = SqlTokenizer.TokenizeTopLevel(sql);
         if (tokens.Count == 0) return SqlStatementType.Unknown;
 
-        static string Up(string s) => s.ToUpperInvariant();
-
-        var first = Up(tokens[0]);
+        var first = tokens[0].ToUpperInvariant();
 
         if (first == "WITH")
         {
             // Best-effort: detect the first real statement keyword after the CTE.
             for (var i = 1; i < tokens.Count; i++)
             {
-                var t = Up(tokens[i]);
+                var t = tokens[i].ToUpperInvariant();
                 if (t is "SELECT" or "INSERT" or "UPDATE" or "DELETE")
                     return MapSimple(t, tokens, i);
             }

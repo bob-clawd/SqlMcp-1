@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Oracle.ManagedDataAccess.Client;
 using SqlMcp.Tools.Models;
 using SqlMcp.Tools.Security;
@@ -267,7 +268,7 @@ ORDER BY rc.TABLE_NAME, rc.CONSTRAINT_NAME, rc.POSITION";
         await using var conn = new OracleConnection(connectionString);
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = isReadOnly ? SqlLimiter.ApplyLimitIfMissing(sql, maxRows, Dialect) : sql;
+        cmd.CommandText = isReadOnly ? ApplyLimitIfMissing(sql, maxRows) : sql;
 
         if (isReadOnly)
         {
@@ -375,4 +376,18 @@ ORDER BY rc.TABLE_NAME, rc.CONSTRAINT_NAME, rc.POSITION";
 
         return new QueryResult(columns, rows);
     }
+
+    private static string ApplyLimitIfMissing(string sql, int maxRows)
+    {
+        if (s_fetchFirstRegex.IsMatch(sql))
+            return sql;
+
+        var trimmed = sql.TrimEnd();
+        if (trimmed.EndsWith(';'))
+            trimmed = trimmed[..^1];
+
+        return trimmed + $" FETCH FIRST {maxRows} ROWS ONLY";
+    }
+
+    private static readonly Regex s_fetchFirstRegex = new(@"\bFETCH\s+FIRST\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 }

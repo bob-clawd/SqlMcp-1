@@ -15,7 +15,7 @@ public sealed record AnalyzeQueryResponse(
 [McpServerToolType]
 public sealed class AnalyzeQueryTool(
     IDatabaseDriver db,
-    ISqlStatementClassifier classifier)
+    SqlStatementClassifier classifier)
 {
     [McpServerTool(Name = "analyze_query", Title = "Analyze SQL Query")]
     [Description("Analyze a SQL query for performance. Shows EXPLAIN output and detects common issues (full scans, missing indexes, sorts). Defaults to plan-only (execute=false). Set execute=true to capture actual timing for SELECT.")]

@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Microsoft.Data.SqlClient;
 using SqlMcp.Tools.Models;
 using SqlMcp.Tools.Security;
@@ -267,7 +268,7 @@ ORDER BY t.name, fk.name, fkc.constraint_column_id";
         await using var conn = new SqlConnection(connectionString);
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = isReadOnly ? SqlLimiter.ApplyLimitIfMissing(sql, maxRows, Dialect) : sql;
+        cmd.CommandText = isReadOnly ? ApplyLimitIfMissing(sql, maxRows) : sql;
 
         if (isReadOnly)
         {
@@ -425,4 +426,18 @@ ORDER BY t.name, fk.name, fkc.constraint_column_id";
 
         return new QueryResult(columns, rows);
     }
+
+    private static string ApplyLimitIfMissing(string sql, int maxRows)
+    {
+        if (s_topRegex.IsMatch(sql))
+            return sql;
+
+        var selectIndex = sql.IndexOf("SELECT", StringComparison.OrdinalIgnoreCase);
+        if (selectIndex < 0)
+            return sql;
+
+        return sql.Insert(selectIndex + 6, $" TOP({maxRows})");
+    }
+
+    private static readonly Regex s_topRegex = new(@"\bTOP\s*\(", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 }

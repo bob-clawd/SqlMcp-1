@@ -17,7 +17,7 @@ public sealed record QueryResponse(
 [McpServerToolType]
 public sealed class QueryTool(
     IDatabaseDriver db,
-    ISqlStatementClassifier classifier,
+    SqlStatementClassifier classifier,
     SqlPermissionOptions permissions)
 {
     private const int DefaultMaxRows = 100;

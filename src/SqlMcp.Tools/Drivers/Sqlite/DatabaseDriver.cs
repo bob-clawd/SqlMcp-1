@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Microsoft.Data.Sqlite;
 using SqlMcp.Tools.Models;
 using SqlMcp.Tools.Security;
@@ -148,7 +149,7 @@ ORDER BY name";
         await EnsureOpenAsync(cancellationToken).ConfigureAwait(false);
 
         await using var cmd = _connection.CreateCommand();
-        cmd.CommandText = isReadOnly ? SqlLimiter.ApplyLimitIfMissing(sql, maxRows, Dialect) : sql;
+        cmd.CommandText = isReadOnly ? ApplyLimitIfMissing(sql, maxRows) : sql;
 
         if (isReadOnly)
         {
@@ -255,4 +256,18 @@ ORDER BY name";
 
         return new QueryResult(columns, rows);
     }
+
+    private static string ApplyLimitIfMissing(string sql, int maxRows)
+    {
+        if (s_limitRegex.IsMatch(sql))
+            return sql;
+
+        var trimmed = sql.TrimEnd();
+        if (trimmed.EndsWith(';'))
+            trimmed = trimmed[..^1];
+
+        return trimmed + $" LIMIT {maxRows}";
+    }
+
+    private static readonly Regex s_limitRegex = new(@"\bLIMIT\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 }
