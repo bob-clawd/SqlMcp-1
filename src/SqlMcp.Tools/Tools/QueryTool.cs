@@ -22,7 +22,7 @@ public sealed class QueryTool(
 {
     private const int DefaultMaxRows = 100;
 
-    [McpServerTool(Name = "query", Title = "Execute SQL Query")]
+    [McpServerTool(Name = "execute_query", Title = "Execute SQL Query")]
     [Description("Execute a SQL statement against the connected database. Read operations (SELECT/SHOW/DESCRIBE/EXPLAIN) are always allowed. Write/DDL require explicit opt-in via startup flags.")]
     public async Task<QueryResponse> ExecuteAsync(
         [Description("SQL statement to execute")] string sql,
