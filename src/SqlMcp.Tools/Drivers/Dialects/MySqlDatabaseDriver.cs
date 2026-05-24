@@ -3,9 +3,9 @@ using MySqlConnector;
 using SqlMcp.Tools.Models;
 using SqlMcp.Tools.Security;
 
-namespace SqlMcp.Tools.Drivers.MySql;
+namespace SqlMcp.Tools.Drivers.Dialects;
 
-internal sealed class DatabaseDriver(string connectionString) : IDatabaseDriver
+internal sealed class MySqlDatabaseDriver(string connectionString) : IDatabaseDriver
 {
     public DbDialect Dialect => DbDialect.MySql;
 

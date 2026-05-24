@@ -3,13 +3,13 @@ using Microsoft.Data.Sqlite;
 using SqlMcp.Tools.Models;
 using SqlMcp.Tools.Security;
 
-namespace SqlMcp.Tools.Drivers.Sqlite;
+namespace SqlMcp.Tools.Drivers.Dialects;
 
-internal sealed class DatabaseDriver : IDatabaseDriver
+internal sealed class SqliteDatabaseDriver : IDatabaseDriver
 {
     private readonly SqliteConnection _connection;
 
-    public DatabaseDriver(string filePath)
+    public SqliteDatabaseDriver(string filePath)
     {
         // Allow a plain path. SQLite also supports "Data Source=:memory:" etc.
         var cs = filePath.Contains('=')

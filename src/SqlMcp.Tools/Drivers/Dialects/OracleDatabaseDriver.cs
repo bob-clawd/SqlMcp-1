@@ -1,34 +1,33 @@
 using System.Text.RegularExpressions;
-using Microsoft.Data.SqlClient;
+using Oracle.ManagedDataAccess.Client;
 using SqlMcp.Tools.Models;
 using SqlMcp.Tools.Security;
 
-namespace SqlMcp.Tools.Drivers.Mssql;
+namespace SqlMcp.Tools.Drivers.Dialects;
 
-internal sealed class DatabaseDriver(string connectionString) : IDatabaseDriver
+internal sealed class OracleDatabaseDriver(string connectionString) : IDatabaseDriver
 {
     private const int MaxSampleRows = 100;
 
-    public DbDialect Dialect => DbDialect.Mssql;
+    public DbDialect Dialect => DbDialect.Oracle;
 
     public async Task TestConnectionAsync(CancellationToken cancellationToken = default)
     {
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new OracleConnection(connectionString);
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT 1";
+        cmd.CommandText = "SELECT 1 FROM DUAL";
         _ = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyList<TableInfo>> ListTablesAsync(CancellationToken cancellationToken = default)
     {
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new OracleConnection(connectionString);
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = @"SELECT TABLE_NAME, TABLE_TYPE
-FROM INFORMATION_SCHEMA.TABLES
-WHERE TABLE_TYPE IN ('BASE TABLE', 'VIEW')
-  AND TABLE_CATALOG = DB_NAME()
+        cmd.CommandText = @"SELECT TABLE_NAME, 'TABLE' FROM USER_TABLES
+UNION ALL
+SELECT VIEW_NAME, 'VIEW' FROM USER_VIEWS
 ORDER BY TABLE_NAME";
 
         var result = new List<TableInfo>();
@@ -46,29 +45,31 @@ ORDER BY TABLE_NAME";
     {
         GuardIdentifier(tableName);
 
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new OracleConnection(connectionString);
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         var columns = new List<ColumnInfo>();
         await using (var cmd = conn.CreateCommand())
         {
-            cmd.CommandText = @"SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH,
-       IS_NULLABLE, COLUMN_DEFAULT, ORDINAL_POSITION
-FROM INFORMATION_SCHEMA.COLUMNS
-WHERE TABLE_CATALOG = DB_NAME() AND TABLE_NAME = @t
-ORDER BY ORDINAL_POSITION";
-            cmd.Parameters.AddWithValue("@t", tableName);
+            cmd.CommandText = @"SELECT COLUMN_NAME, DATA_TYPE, DATA_LENGTH, DATA_PRECISION, DATA_SCALE,
+       NULLABLE, DATA_DEFAULT, COLUMN_ID
+FROM USER_TAB_COLUMNS
+WHERE TABLE_NAME = :t
+ORDER BY COLUMN_ID";
+            cmd.Parameters.Add(new OracleParameter(":t", tableName));
 
             await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
                 var colName = reader.GetString(0);
                 var dataType = reader.GetString(1);
-                var maxLen = reader.IsDBNull(2) ? (int?)null : reader.GetInt32(2);
-                var nullable = string.Equals(reader.GetString(3), "YES", StringComparison.OrdinalIgnoreCase);
-                var def = reader.IsDBNull(4) ? null : reader.GetValue(4)?.ToString();
+                var dataLen = reader.IsDBNull(2) ? (int?)null : reader.GetInt32(2);
+                var precision = reader.IsDBNull(3) ? (int?)null : reader.GetInt32(3);
+                var scale = reader.IsDBNull(4) ? (int?)null : reader.GetInt32(4);
+                var nullable = string.Equals(reader.GetString(5), "Y", StringComparison.OrdinalIgnoreCase);
+                var def = reader.IsDBNull(6) ? null : reader.GetValue(6)?.ToString();
 
-                var displayType = BuildDataType(dataType, maxLen);
+                var displayType = BuildDataType(dataType, dataLen, precision, scale);
 
                 columns.Add(new ColumnInfo(
                     Name: colName,
@@ -77,24 +78,23 @@ ORDER BY ORDINAL_POSITION";
                     DefaultValue: def,
                     IsPrimaryKey: false,
                     IsUnique: false,
-                    Extra: string.Equals(dataType, "uniqueidentifier", StringComparison.OrdinalIgnoreCase) &&
-                           def is not null && def.Contains("newid", StringComparison.OrdinalIgnoreCase)
-                        ? "DEFAULT_NEWID"
-                        : null));
+                    Extra: null));
             }
         }
+
+        if (columns.Count == 0)
+            throw new ArgumentException($"Table '{tableName}' does not exist.", nameof(tableName));
 
         // primary keys
         var pkCols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         await using (var cmd = conn.CreateCommand())
         {
-            cmd.CommandText = @"SELECT c.name
-FROM sys.indexes i
-JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
-JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
-JOIN sys.tables t ON i.object_id = t.object_id
-WHERE t.name = @t AND i.is_primary_key = 1";
-            cmd.Parameters.AddWithValue("@t", tableName);
+            cmd.CommandText = @"SELECT cc.COLUMN_NAME
+FROM USER_CONSTRAINTS c
+JOIN USER_CONS_COLUMNS cc ON c.CONSTRAINT_NAME = cc.CONSTRAINT_NAME
+WHERE c.TABLE_NAME = :t AND c.CONSTRAINT_TYPE = 'P'
+ORDER BY cc.POSITION";
+            cmd.Parameters.Add(new OracleParameter(":t", tableName));
 
             await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -103,24 +103,24 @@ WHERE t.name = @t AND i.is_primary_key = 1";
 
         columns = columns.Select(c => c with { IsPrimaryKey = pkCols.Contains(c.Name) }).ToList();
 
-        // indexes and unique constraints
+        // indexes (excluding pk indexes)
         var indexMap = new Dictionary<string, (bool unique, List<(int seq, string col)> cols)>(StringComparer.OrdinalIgnoreCase);
         await using (var cmd = conn.CreateCommand())
         {
-            cmd.CommandText = @"SELECT i.name, i.is_unique, c.name, ic.key_ordinal
-FROM sys.indexes i
-JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
-JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
-JOIN sys.tables t ON i.object_id = t.object_id
-WHERE t.name = @t AND i.is_primary_key = 0
-ORDER BY i.name, ic.key_ordinal";
-            cmd.Parameters.AddWithValue("@t", tableName);
+            cmd.CommandText = @"SELECT i.INDEX_NAME, i.UNIQUENESS, ic.COLUMN_NAME, ic.COLUMN_POSITION
+FROM USER_INDEXES i
+JOIN USER_IND_COLUMNS ic ON i.INDEX_NAME = ic.INDEX_NAME AND i.TABLE_NAME = ic.TABLE_NAME
+LEFT JOIN USER_CONSTRAINTS pk ON i.TABLE_NAME = pk.TABLE_NAME
+  AND i.INDEX_NAME = pk.CONSTRAINT_NAME AND pk.CONSTRAINT_TYPE = 'P'
+WHERE i.TABLE_NAME = :t AND pk.CONSTRAINT_NAME IS NULL
+ORDER BY i.INDEX_NAME, ic.COLUMN_POSITION";
+            cmd.Parameters.Add(new OracleParameter(":t", tableName));
 
             await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
                 var idxName = reader.GetString(0);
-                var unique = reader.GetBoolean(1);
+                var unique = string.Equals(reader.GetString(1), "UNIQUE", StringComparison.OrdinalIgnoreCase);
                 var colName = reader.GetString(2);
                 var seq = reader.GetInt32(3);
 
@@ -147,16 +147,15 @@ ORDER BY i.name, ic.key_ordinal";
         var foreignKeys = new List<ForeignKeyInfo>();
         await using (var cmd = conn.CreateCommand())
         {
-            cmd.CommandText = @"SELECT fk.name, c.name, rt.name, rc.name
-FROM sys.foreign_keys fk
-JOIN sys.foreign_key_columns fkc ON fk.object_id = fkc.constraint_object_id
-JOIN sys.columns c ON fkc.parent_object_id = c.object_id AND fkc.parent_column_id = c.column_id
-JOIN sys.tables rt ON fkc.referenced_object_id = rt.object_id
-JOIN sys.columns rc ON fkc.referenced_object_id = rc.object_id AND fkc.referenced_column_id = rc.column_id
-JOIN sys.tables t ON fk.parent_object_id = t.object_id
-WHERE t.name = @t
-ORDER BY fk.name, fkc.constraint_column_id";
-            cmd.Parameters.AddWithValue("@t", tableName);
+            cmd.CommandText = @"SELECT rc.CONSTRAINT_NAME, rc.COLUMN_NAME,
+       pk.TABLE_NAME AS REF_TABLE, pk.COLUMN_NAME AS REF_COLUMN
+FROM (SELECT c.CONSTRAINT_NAME, cc.COLUMN_NAME, cc.POSITION, c.R_CONSTRAINT_NAME
+      FROM USER_CONSTRAINTS c
+      JOIN USER_CONS_COLUMNS cc ON c.CONSTRAINT_NAME = cc.CONSTRAINT_NAME
+      WHERE c.TABLE_NAME = :t AND c.CONSTRAINT_TYPE = 'R') rc
+JOIN USER_CONS_COLUMNS pk ON pk.CONSTRAINT_NAME = rc.R_CONSTRAINT_NAME AND pk.POSITION = rc.POSITION
+ORDER BY rc.CONSTRAINT_NAME, rc.POSITION";
+            cmd.Parameters.Add(new OracleParameter(":t", tableName));
 
             await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -174,18 +173,17 @@ ORDER BY fk.name, fkc.constraint_column_id";
 
     public async Task<IReadOnlyList<TableDescription>> GetSchemaAsync(CancellationToken cancellationToken = default)
     {
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new OracleConnection(connectionString);
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         var tableMap = new Dictionary<string, (List<ColumnInfo> cols, List<ForeignKeyInfo> fks)>(StringComparer.OrdinalIgnoreCase);
 
         await using (var cmd = conn.CreateCommand())
         {
-            cmd.CommandText = @"SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH,
-       IS_NULLABLE, COLUMN_DEFAULT, ORDINAL_POSITION
-FROM INFORMATION_SCHEMA.COLUMNS
-WHERE TABLE_CATALOG = DB_NAME()
-ORDER BY TABLE_NAME, ORDINAL_POSITION";
+            cmd.CommandText = @"SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, DATA_LENGTH, DATA_PRECISION, DATA_SCALE,
+       NULLABLE, DATA_DEFAULT, COLUMN_ID
+FROM USER_TAB_COLUMNS
+ORDER BY TABLE_NAME, COLUMN_ID";
 
             await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -193,16 +191,18 @@ ORDER BY TABLE_NAME, ORDINAL_POSITION";
                 var table = reader.GetString(0);
                 var colName = reader.GetString(1);
                 var dataType = reader.GetString(2);
-                var maxLen = reader.IsDBNull(3) ? (int?)null : reader.GetInt32(3);
-                var nullable = string.Equals(reader.GetString(4), "YES", StringComparison.OrdinalIgnoreCase);
-                var def = reader.IsDBNull(5) ? null : reader.GetValue(5)?.ToString();
+                var dataLen = reader.IsDBNull(3) ? (int?)null : reader.GetInt32(3);
+                var precision = reader.IsDBNull(4) ? (int?)null : reader.GetInt32(4);
+                var scale = reader.IsDBNull(5) ? (int?)null : reader.GetInt32(5);
+                var nullable = string.Equals(reader.GetString(6), "Y", StringComparison.OrdinalIgnoreCase);
+                var def = reader.IsDBNull(7) ? null : reader.GetValue(7)?.ToString();
 
                 if (!tableMap.TryGetValue(table, out var entry))
                     entry = (new List<ColumnInfo>(), new List<ForeignKeyInfo>());
 
                 entry.cols.Add(new ColumnInfo(
                     Name: colName,
-                    DataType: BuildDataType(dataType, maxLen),
+                    DataType: BuildDataType(dataType, dataLen, precision, scale),
                     Nullable: nullable,
                     DefaultValue: def,
                     IsPrimaryKey: false,
@@ -215,14 +215,14 @@ ORDER BY TABLE_NAME, ORDINAL_POSITION";
 
         await using (var cmd = conn.CreateCommand())
         {
-            cmd.CommandText = @"SELECT t.name, c.name, fk.name, rt.name, rc.name
-FROM sys.foreign_keys fk
-JOIN sys.foreign_key_columns fkc ON fk.object_id = fkc.constraint_object_id
-JOIN sys.columns c ON fkc.parent_object_id = c.object_id AND fkc.parent_column_id = c.column_id
-JOIN sys.tables rt ON fkc.referenced_object_id = rt.object_id
-JOIN sys.columns rc ON fkc.referenced_object_id = rc.object_id AND fkc.referenced_column_id = rc.column_id
-JOIN sys.tables t ON fk.parent_object_id = t.object_id
-ORDER BY t.name, fk.name, fkc.constraint_column_id";
+            cmd.CommandText = @"SELECT rc.TABLE_NAME, rc.COLUMN_NAME, rc.CONSTRAINT_NAME,
+       pk.TABLE_NAME AS REF_TABLE, pk.COLUMN_NAME AS REF_COLUMN
+FROM (SELECT cc.TABLE_NAME, cc.COLUMN_NAME, cc.CONSTRAINT_NAME, cc.POSITION, c.R_CONSTRAINT_NAME
+      FROM USER_CONSTRAINTS c
+      JOIN USER_CONS_COLUMNS cc ON c.CONSTRAINT_NAME = cc.CONSTRAINT_NAME
+      WHERE c.CONSTRAINT_TYPE = 'R') rc
+JOIN USER_CONS_COLUMNS pk ON pk.CONSTRAINT_NAME = rc.R_CONSTRAINT_NAME AND pk.POSITION = rc.POSITION
+ORDER BY rc.TABLE_NAME, rc.CONSTRAINT_NAME, rc.POSITION";
 
             await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -251,13 +251,13 @@ ORDER BY t.name, fk.name, fkc.constraint_column_id";
         if (orderByColumn is not null) GuardIdentifier(orderByColumn);
 
         var safeLimit = Math.Clamp(limit, 1, MaxSampleRows);
-        var orderClause = orderByColumn is null ? string.Empty : $" ORDER BY [{orderByColumn}] {(orderDescending ? "DESC" : "ASC")}";
+        var orderClause = orderByColumn is null ? string.Empty : $" ORDER BY \"{orderByColumn}\" {(orderDescending ? "DESC" : "ASC")}";
 
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new OracleConnection(connectionString);
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = $"SELECT TOP(@limit) * FROM [{tableName}]{orderClause}";
-        cmd.Parameters.AddWithValue("@limit", safeLimit);
+        cmd.CommandText = $"SELECT * FROM \"{tableName}\"{orderClause} FETCH FIRST :limit ROWS ONLY";
+        cmd.Parameters.Add(new OracleParameter(":limit", safeLimit));
 
         await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         return await ReadResultAsync(reader, cancellationToken).ConfigureAwait(false);
@@ -265,7 +265,7 @@ ORDER BY t.name, fk.name, fkc.constraint_column_id";
 
     public async Task<QueryResult> ExecuteQueryAsync(string sql, bool isReadOnly, int maxRows, CancellationToken cancellationToken = default)
     {
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new OracleConnection(connectionString);
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = isReadOnly ? ApplyLimitIfMissing(sql, maxRows) : sql;
@@ -278,20 +278,7 @@ ORDER BY t.name, fk.name, fkc.constraint_column_id";
         else
         {
             var affected = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-            string? insertId = null;
-            try
-            {
-                await using var idCmd = conn.CreateCommand();
-                idCmd.CommandText = "SELECT SCOPE_IDENTITY()";
-                var id = await idCmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-                if (id is not null && id is not DBNull && decimal.TryParse(id.ToString(), out var parsed) && parsed > 0)
-                    insertId = parsed.ToString();
-            }
-            catch
-            {
-                // best-effort only
-            }
-            return new QueryResult([], [], affected, insertId);
+            return new QueryResult([], [], affected, null);
         }
     }
 
@@ -299,7 +286,7 @@ ORDER BY t.name, fk.name, fkc.constraint_column_id";
     {
         var stripped = sql.Trim().TrimEnd(';');
 
-        await using var conn = new SqlConnection(connectionString);
+        await using var conn = new OracleConnection(connectionString);
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -307,84 +294,39 @@ ORDER BY t.name, fk.name, fkc.constraint_column_id";
 
         try
         {
-            if (execute)
+            // Oracle: EXPLAIN PLAN FOR <query> then read plan via DBMS_XPLAN.DISPLAY.
+            await using (var planCmd = conn.CreateCommand())
             {
-                // SET STATISTICS PROFILE ON — returns plan alongside actual data.
-                await using (var setCmd = conn.CreateCommand())
-                {
-                    setCmd.CommandText = "SET STATISTICS PROFILE ON";
-                    await setCmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-                }
+                planCmd.CommandText = $"EXPLAIN PLAN FOR {stripped}";
+                planCmd.CommandTimeout = (int)Math.Ceiling(timeout.TotalSeconds);
+                await planCmd.ExecuteNonQueryAsync(cts.Token).ConfigureAwait(false);
+            }
 
-                try
-                {
-                    await using var queryCmd = conn.CreateCommand();
-                    queryCmd.CommandText = stripped;
-                    queryCmd.CommandTimeout = (int)Math.Ceiling(timeout.TotalSeconds);
+            await using var displayCmd = conn.CreateCommand();
+            displayCmd.CommandText = "SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY())";
+            displayCmd.CommandTimeout = (int)Math.Ceiling(timeout.TotalSeconds);
 
-                    await using var reader = await queryCmd.ExecuteReaderAsync(cts.Token).ConfigureAwait(false);
-                    var lines = new List<string>();
-                    do
-                    {
-                        while (await reader.ReadAsync(cts.Token).ConfigureAwait(false))
-                        {
-                            if (!await reader.IsDBNullAsync(0, cts.Token).ConfigureAwait(false))
-                                lines.Add(reader.GetString(0));
-                        }
-                    } while (await reader.NextResultAsync(cts.Token).ConfigureAwait(false));
-
-                    var raw = string.Join("\n", lines);
-                    return new AnalyzeResult(raw, true);
-                }
-                finally
+            await using var reader = await displayCmd.ExecuteReaderAsync(cts.Token).ConfigureAwait(false);
+            var lines = new List<string>();
+            while (await reader.ReadAsync(cts.Token).ConfigureAwait(false))
+            {
+                for (var i = 0; i < reader.FieldCount; i++)
                 {
-                    await using (var setCmd = conn.CreateCommand())
-                    {
-                        setCmd.CommandText = "SET STATISTICS PROFILE OFF";
-                        await setCmd.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
-                    }
+                    if (!await reader.IsDBNullAsync(i, cts.Token).ConfigureAwait(false))
+                        lines.Add(reader.GetString(i));
                 }
             }
-            else
-            {
-                // SET SHOWPLAN_TEXT ON — estimated plan only, no execution.
-                await using (var setCmd = conn.CreateCommand())
-                {
-                    setCmd.CommandText = "SET SHOWPLAN_TEXT ON";
-                    await setCmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-                }
 
-                try
-                {
-                    await using var queryCmd = conn.CreateCommand();
-                    queryCmd.CommandText = stripped;
-                    queryCmd.CommandTimeout = (int)Math.Ceiling(timeout.TotalSeconds);
-
-                    await using var reader = await queryCmd.ExecuteReaderAsync(cts.Token).ConfigureAwait(false);
-                    var lines = new List<string>();
-                    while (await reader.ReadAsync(cts.Token).ConfigureAwait(false))
-                        lines.Add(reader.GetString(0));
-
-                    var raw = string.Join("\n", lines);
-                    return new AnalyzeResult(raw, false);
-                }
-                finally
-                {
-                    await using (var setCmd = conn.CreateCommand())
-                    {
-                        setCmd.CommandText = "SET SHOWPLAN_TEXT OFF";
-                        await setCmd.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
-                    }
-                }
-            }
+            var raw = string.Join("\n", lines);
+            return new AnalyzeResult(raw, false);
         }
         catch (OperationCanceledException)
         {
-            return new AnalyzeResult(string.Empty, execute, TimedOut: true);
+            return new AnalyzeResult(string.Empty, false, TimedOut: true);
         }
-        catch (SqlException ex) when (ex.Number == -2) // timeout
+        catch (OracleException ex) when (ex.Number == 1013) // ORA-01013: user requested cancel
         {
-            return new AnalyzeResult(string.Empty, execute, TimedOut: true);
+            return new AnalyzeResult(string.Empty, false, TimedOut: true);
         }
     }
 
@@ -396,19 +338,27 @@ ORDER BY t.name, fk.name, fkc.constraint_column_id";
             throw new ArgumentException($"Invalid identifier '{name}'.", nameof(name));
     }
 
-    private static string BuildDataType(string baseType, int? maxLength)
+    private static string BuildDataType(string baseType, int? dataLength, int? precision, int? scale)
     {
-        if (maxLength is null or 0)
+        if (baseType is "CLOB" or "BLOB" or "NCLOB" or "LONG" or "RAW")
             return baseType;
 
-        return maxLength.Value switch
+        if (baseType == "NUMBER" && precision.HasValue)
+            return scale.HasValue && scale > 0
+                ? $"{baseType}({precision},{scale})"
+                : $"{baseType}({precision})";
+
+        if (baseType is "VARCHAR2" or "NVARCHAR2" or "CHAR" or "NCHAR")
         {
-            -1 => $"{baseType}(MAX)",
-            _ => $"{baseType}({maxLength})"
-        };
+            if (dataLength.HasValue)
+                return dataLength == -1 ? $"{baseType}(MAX)" : $"{baseType}({dataLength})";
+            return $"{baseType}(1)";
+        }
+
+        return baseType;
     }
 
-    private static async Task<QueryResult> ReadResultAsync(SqlDataReader reader, CancellationToken cancellationToken)
+    private static async Task<QueryResult> ReadResultAsync(OracleDataReader reader, CancellationToken cancellationToken)
     {
         var columns = Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToArray();
         var rows = new List<IReadOnlyDictionary<string, object?>>();
@@ -429,15 +379,15 @@ ORDER BY t.name, fk.name, fkc.constraint_column_id";
 
     private static string ApplyLimitIfMissing(string sql, int maxRows)
     {
-        if (s_topRegex.IsMatch(sql))
+        if (s_fetchFirstRegex.IsMatch(sql))
             return sql;
 
-        var selectIndex = sql.IndexOf("SELECT", StringComparison.OrdinalIgnoreCase);
-        if (selectIndex < 0)
-            return sql;
+        var trimmed = sql.TrimEnd();
+        if (trimmed.EndsWith(';'))
+            trimmed = trimmed[..^1];
 
-        return sql.Insert(selectIndex + 6, $" TOP({maxRows})");
+        return trimmed + $" FETCH FIRST {maxRows} ROWS ONLY";
     }
 
-    private static readonly Regex s_topRegex = new(@"\bTOP\s*\(", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex s_fetchFirstRegex = new(@"\bFETCH\s+FIRST\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 }

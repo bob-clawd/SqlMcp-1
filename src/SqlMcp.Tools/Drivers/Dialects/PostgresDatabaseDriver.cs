@@ -3,9 +3,9 @@ using Npgsql;
 using SqlMcp.Tools.Models;
 using SqlMcp.Tools.Security;
 
-namespace SqlMcp.Tools.Drivers.Postgres;
+namespace SqlMcp.Tools.Drivers.Dialects;
 
-internal sealed class DatabaseDriver(string connectionString) : IDatabaseDriver
+internal sealed class PostgresDatabaseDriver(string connectionString) : IDatabaseDriver
 {
     private readonly NpgsqlDataSource _dataSource = NpgsqlDataSource.Create(connectionString);
 
