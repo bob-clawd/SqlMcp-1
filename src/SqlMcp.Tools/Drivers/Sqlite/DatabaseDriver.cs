@@ -197,8 +197,7 @@ ORDER BY name";
                 lines.Add(reader.GetString(reader.GetOrdinal("detail")));
 
             var raw = string.Join("\n", lines);
-            var insights = PlanInsights.FromText(raw);
-            return new AnalyzeResult(raw, insights, Executed: false);
+            return new AnalyzeResult(raw, Array.Empty<string>(), Executed: false);
         }
         catch (OperationCanceledException)
         {

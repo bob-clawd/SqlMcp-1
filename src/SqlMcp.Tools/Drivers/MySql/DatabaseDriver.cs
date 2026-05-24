@@ -253,17 +253,15 @@ WHERE TABLE_SCHEMA = DATABASE() AND REFERENCED_TABLE_NAME IS NOT NULL";
         {
             await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             var raw = await ReadExplainRawAsync(reader, cancellationToken).ConfigureAwait(false);
-            var insights = PlanInsights.FromText(raw);
-            return new AnalyzeResult(raw, insights, execute);
+            return new AnalyzeResult(raw, Array.Empty<string>(), execute);
         }
         catch (MySqlException ex) when (execute && ex.Message.Contains("EXPLAIN ANALYZE", StringComparison.OrdinalIgnoreCase))
         {
             cmd.CommandText = $"EXPLAIN FORMAT=TRADITIONAL {stripped}";
             await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             var raw = await ReadExplainRawAsync(reader, cancellationToken).ConfigureAwait(false);
-            var insights = PlanInsights.FromText(raw);
             raw += "\n\n(Note: EXPLAIN ANALYZE requires MySQL 8.0.18+. Showed plan-only output.)";
-            return new AnalyzeResult(raw, insights, false);
+            return new AnalyzeResult(raw, Array.Empty<string>(), false);
         }
         catch (MySqlException ex) when (ex.Number == 3024 /* ER_QUERY_TIMEOUT */)
         {
