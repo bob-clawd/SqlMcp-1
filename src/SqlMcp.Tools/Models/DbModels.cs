@@ -4,7 +4,8 @@ public enum DbDialect
 {
     MySql,
     Postgres,
-    Sqlite
+    Sqlite,
+    Mssql
 }
 
 public enum DbTableType

@@ -1,4 +1,5 @@
 using System.Net;
+using Microsoft.Data.SqlClient;
 using MySqlConnector;
 using Npgsql;
 using DatabaseDriver = SqlMcp.Tools.Drivers.Postgres.DatabaseDriver;
@@ -41,8 +42,15 @@ public static class DatabaseDriverFactory
             return new Sqlite.DatabaseDriver(path);
         }
 
+        if (connectionUri.StartsWith("mssql://", StringComparison.OrdinalIgnoreCase) ||
+            connectionUri.StartsWith("sqlserver://", StringComparison.OrdinalIgnoreCase))
+        {
+            var cs = BuildMssqlConnectionString(connectionUri, ssl);
+            return new Mssql.DatabaseDriver(cs);
+        }
+
         throw new ArgumentException(
-            "Unsupported database URI. Supported schemes: mysql://, postgres:// (postgresql://), sqlite: (file:) or a *.db/*.sqlite/*.sqlite3 path.",
+            "Unsupported database URI. Supported schemes: mysql://, postgres:// (postgresql://), mssql:// (sqlserver://), sqlite: (file:) or a *.db/*.sqlite/*.sqlite3 path.",
             nameof(connectionUri));
     }
 
@@ -102,6 +110,31 @@ public static class DatabaseDriverFactory
             b.SslMode = SslMode.Require;
             b.TrustServerCertificate = false;
         }
+
+        return b.ConnectionString;
+    }
+
+    private static string BuildMssqlConnectionString(string uriText, bool ssl)
+    {
+        var uri = new Uri(uriText);
+        var db = uri.AbsolutePath.Trim('/');
+
+        var userInfo = uri.UserInfo.Split(':', 2);
+        var user = WebUtility.UrlDecode(userInfo.ElementAtOrDefault(0) ?? "");
+        var pass = WebUtility.UrlDecode(userInfo.ElementAtOrDefault(1) ?? "");
+
+        var b = new SqlConnectionStringBuilder
+        {
+            DataSource = uri.Host + (uri.Port > 0 ? $",{uri.Port}" : ",1433"),
+            UserID = string.IsNullOrEmpty(user) ? null : user,
+            Password = string.IsNullOrEmpty(pass) ? null : pass,
+            InitialCatalog = db,
+            TrustServerCertificate = ssl,
+            Encrypt = ssl,
+        };
+
+        if (string.IsNullOrEmpty(user) && string.IsNullOrEmpty(pass))
+            b.IntegratedSecurity = true;
 
         return b.ConnectionString;
     }
