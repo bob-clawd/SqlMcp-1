@@ -2,22 +2,15 @@ using MySqlConnector;
 using SqlMcp.Tools.Models;
 using SqlMcp.Tools.Security;
 
-namespace SqlMcp.Tools.Drivers;
+namespace SqlMcp.Tools.Drivers.MySql;
 
-internal sealed class MySqlDatabaseDriver : IDatabaseDriver
+internal sealed class DatabaseDriver(string connectionString) : IDatabaseDriver
 {
-    private readonly string _connectionString;
-
-    public MySqlDatabaseDriver(string connectionString)
-    {
-        _connectionString = connectionString;
-    }
-
     public DbDialect Dialect => DbDialect.MySql;
 
     public async Task TestConnectionAsync(CancellationToken cancellationToken = default)
     {
-        await using var conn = new MySqlConnection(_connectionString);
+        await using var conn = new MySqlConnection(connectionString);
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = "SELECT 1";
@@ -26,7 +19,7 @@ internal sealed class MySqlDatabaseDriver : IDatabaseDriver
 
     public async Task<IReadOnlyList<TableInfo>> ListTablesAsync(CancellationToken cancellationToken = default)
     {
-        await using var conn = new MySqlConnection(_connectionString);
+        await using var conn = new MySqlConnection(connectionString);
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = "SHOW FULL TABLES";
@@ -46,7 +39,7 @@ internal sealed class MySqlDatabaseDriver : IDatabaseDriver
     {
         GuardIdentifier(tableName);
 
-        await using var conn = new MySqlConnection(_connectionString);
+        await using var conn = new MySqlConnection(connectionString);
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         var columns = new List<ColumnInfo>();
@@ -124,7 +117,7 @@ ORDER BY CONSTRAINT_NAME, ORDINAL_POSITION";
     public async Task<IReadOnlyList<TableDescription>> GetSchemaAsync(CancellationToken cancellationToken = default)
     {
         // Read columns and fks via information_schema; indexes are omitted for speed.
-        await using var conn = new MySqlConnection(_connectionString);
+        await using var conn = new MySqlConnection(connectionString);
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         var tableMap = new Dictionary<string, (List<ColumnInfo> cols, List<ForeignKeyInfo> fks)>(StringComparer.OrdinalIgnoreCase);
@@ -193,7 +186,7 @@ WHERE TABLE_SCHEMA = DATABASE() AND REFERENCED_TABLE_NAME IS NOT NULL";
         var safeLimit = Math.Clamp(limit, 1, 100);
         var orderClause = orderByColumn is null ? string.Empty : $" ORDER BY `{orderByColumn}` {(orderDescending ? "DESC" : "ASC")}";
 
-        await using var conn = new MySqlConnection(_connectionString);
+        await using var conn = new MySqlConnection(connectionString);
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = $"SELECT * FROM `{tableName}`{orderClause} LIMIT {safeLimit}";
@@ -204,7 +197,7 @@ WHERE TABLE_SCHEMA = DATABASE() AND REFERENCED_TABLE_NAME IS NOT NULL";
 
     public async Task<QueryResult> ExecuteQueryAsync(string sql, bool isReadOnly, int maxRows, CancellationToken cancellationToken = default)
     {
-        await using var conn = new MySqlConnection(_connectionString);
+        await using var conn = new MySqlConnection(connectionString);
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = isReadOnly ? SqlLimiter.ApplyLimitIfMissing(sql, maxRows, Dialect) : sql;
@@ -230,7 +223,7 @@ WHERE TABLE_SCHEMA = DATABASE() AND REFERENCED_TABLE_NAME IS NOT NULL";
             {
                 // best-effort only
             }
-            return new QueryResult(Array.Empty<string>(), Array.Empty<IReadOnlyDictionary<string, object?>>(), affected, insertId);
+            return new QueryResult([], [], affected, insertId);
         }
     }
 
@@ -238,7 +231,7 @@ WHERE TABLE_SCHEMA = DATABASE() AND REFERENCED_TABLE_NAME IS NOT NULL";
     {
         var stripped = sql.Trim().TrimEnd(';');
 
-        await using var conn = new MySqlConnection(_connectionString);
+        await using var conn = new MySqlConnection(connectionString);
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var cmd = conn.CreateCommand();
         cmd.CommandTimeout = (int)Math.Ceiling(timeout.TotalSeconds);
@@ -260,7 +253,7 @@ WHERE TABLE_SCHEMA = DATABASE() AND REFERENCED_TABLE_NAME IS NOT NULL";
         {
             await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             var raw = await ReadExplainRawAsync(reader, cancellationToken).ConfigureAwait(false);
-            var insights = MySqlPlanInsights.FromText(raw);
+            var insights = PlanInsights.FromText(raw);
             return new AnalyzeResult(raw, insights, execute);
         }
         catch (MySqlException ex) when (execute && ex.Message.Contains("EXPLAIN ANALYZE", StringComparison.OrdinalIgnoreCase))
@@ -268,7 +261,7 @@ WHERE TABLE_SCHEMA = DATABASE() AND REFERENCED_TABLE_NAME IS NOT NULL";
             cmd.CommandText = $"EXPLAIN FORMAT=TRADITIONAL {stripped}";
             await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             var raw = await ReadExplainRawAsync(reader, cancellationToken).ConfigureAwait(false);
-            var insights = MySqlPlanInsights.FromText(raw);
+            var insights = PlanInsights.FromText(raw);
             raw += "\n\n(Note: EXPLAIN ANALYZE requires MySQL 8.0.18+. Showed plan-only output.)";
             return new AnalyzeResult(raw, insights, false);
         }

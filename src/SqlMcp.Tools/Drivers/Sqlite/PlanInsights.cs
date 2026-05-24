@@ -1,11 +1,11 @@
-namespace SqlMcp.Tools.Drivers;
+namespace SqlMcp.Tools.Drivers.Sqlite;
 
-internal static class SqlitePlanInsights
+internal static class PlanInsights
 {
     public static IReadOnlyList<string> FromText(string plan)
     {
         if (string.IsNullOrWhiteSpace(plan))
-            return Array.Empty<string>();
+            return [];
 
         var insights = new List<string>();
 

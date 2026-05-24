@@ -1,6 +1,7 @@
 using System.Net;
 using MySqlConnector;
 using Npgsql;
+using DatabaseDriver = SqlMcp.Tools.Drivers.Postgres.DatabaseDriver;
 
 namespace SqlMcp.Tools.Drivers;
 
@@ -15,14 +16,14 @@ public static class DatabaseDriverFactory
             connectionUri.StartsWith("mysql2://", StringComparison.OrdinalIgnoreCase))
         {
             var cs = BuildMySqlConnectionString(connectionUri, ssl);
-            return new MySqlDatabaseDriver(cs);
+            return new MySql.DatabaseDriver(cs);
         }
 
         if (connectionUri.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
             connectionUri.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
         {
             var cs = BuildPostgresConnectionString(connectionUri, ssl);
-            return new PostgresDatabaseDriver(cs);
+            return new DatabaseDriver(cs);
         }
 
         if (connectionUri.StartsWith("sqlite:", StringComparison.OrdinalIgnoreCase) ||
@@ -37,7 +38,7 @@ public static class DatabaseDriverFactory
             if (string.IsNullOrWhiteSpace(path))
                 throw new ArgumentException("SQLite path must not be empty.", nameof(connectionUri));
 
-            return new SqliteDatabaseDriver(path);
+            return new Sqlite.DatabaseDriver(path);
         }
 
         throw new ArgumentException(

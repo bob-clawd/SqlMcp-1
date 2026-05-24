@@ -2,16 +2,11 @@ using Npgsql;
 using SqlMcp.Tools.Models;
 using SqlMcp.Tools.Security;
 
-namespace SqlMcp.Tools.Drivers;
+namespace SqlMcp.Tools.Drivers.Postgres;
 
-internal sealed class PostgresDatabaseDriver : IDatabaseDriver
+internal sealed class DatabaseDriver(string connectionString) : IDatabaseDriver
 {
-    private readonly NpgsqlDataSource _dataSource;
-
-    public PostgresDatabaseDriver(string connectionString)
-    {
-        _dataSource = NpgsqlDataSource.Create(connectionString);
-    }
+    private readonly NpgsqlDataSource _dataSource = NpgsqlDataSource.Create(connectionString);
 
     public DbDialect Dialect => DbDialect.Postgres;
 
@@ -299,7 +294,7 @@ WHERE kcu.table_schema = current_schema()";
 
             await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             var raw = await ReadExplainLinesAsync(reader, cancellationToken).ConfigureAwait(false);
-            var insights = PostgresPlanInsights.FromText(raw);
+            var insights = PlanInsights.FromText(raw);
             return new AnalyzeResult(raw, insights, false);
         }
 
@@ -323,7 +318,7 @@ WHERE kcu.table_schema = current_schema()";
                 await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
                 var raw = await ReadExplainLinesAsync(reader, cancellationToken).ConfigureAwait(false);
                 await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
-                var insights = PostgresPlanInsights.FromText(raw);
+                var insights = PlanInsights.FromText(raw);
                 return new AnalyzeResult(raw, insights, true);
             }
         }

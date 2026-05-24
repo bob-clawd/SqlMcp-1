@@ -1,6 +1,6 @@
-namespace SqlMcp.Tools.Drivers;
+namespace SqlMcp.Tools.Drivers.Postgres;
 
-internal static class PostgresPlanInsights
+internal static class PlanInsights
 {
     public static IReadOnlyList<string> FromText(string plan)
     {

@@ -2,13 +2,13 @@ using Microsoft.Data.Sqlite;
 using SqlMcp.Tools.Models;
 using SqlMcp.Tools.Security;
 
-namespace SqlMcp.Tools.Drivers;
+namespace SqlMcp.Tools.Drivers.Sqlite;
 
-internal sealed class SqliteDatabaseDriver : IDatabaseDriver
+internal sealed class DatabaseDriver : IDatabaseDriver
 {
     private readonly SqliteConnection _connection;
 
-    public SqliteDatabaseDriver(string filePath)
+    public DatabaseDriver(string filePath)
     {
         // Allow a plain path. SQLite also supports "Data Source=:memory:" etc.
         var cs = filePath.Contains('=')
@@ -197,7 +197,7 @@ ORDER BY name";
                 lines.Add(reader.GetString(reader.GetOrdinal("detail")));
 
             var raw = string.Join("\n", lines);
-            var insights = SqlitePlanInsights.FromText(raw);
+            var insights = PlanInsights.FromText(raw);
             return new AnalyzeResult(raw, insights, Executed: false);
         }
         catch (OperationCanceledException)

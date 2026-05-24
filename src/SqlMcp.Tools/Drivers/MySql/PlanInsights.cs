@@ -1,11 +1,11 @@
-namespace SqlMcp.Tools.Drivers;
+namespace SqlMcp.Tools.Drivers.MySql;
 
-internal static class MySqlPlanInsights
+internal static class PlanInsights
 {
     public static IReadOnlyList<string> FromText(string raw)
     {
         if (string.IsNullOrWhiteSpace(raw))
-            return Array.Empty<string>();
+            return [];
 
         var insights = new List<string>();
 
