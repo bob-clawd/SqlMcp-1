@@ -54,7 +54,7 @@ sqlmcp --db 'oracle://user:password@localhost:1521/XEPDB1'
 ## Configuration
 
 | Flag | Default | Description |
-|---|---|---|---|
+| :--- | :--- | :--- |---|
 | `--db <uri>` | required | Database connection URI |
 | `--ssl` | false | Enable SSL/TLS for connection |
 | `--allow-write` | false | Enable INSERT and UPDATE |
@@ -65,7 +65,7 @@ sqlmcp --db 'oracle://user:password@localhost:1521/XEPDB1'
 ## Available Tools
 
 | Tool | Description | Permission |
-|---|---|---|---|
+| :--- | :--- | :--- |---|
 | `execute_query` | Execute a SQL statement | Depends on statement type |
 | `analyze_query` | Show raw execution plan for a query | Plan-only by default |
 | `list_tables` | List all tables and views | Read-only (default) |
