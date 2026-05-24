@@ -333,8 +333,7 @@ ORDER BY t.name, fk.name, fkc.constraint_column_id";
                     } while (await reader.NextResultAsync(cts.Token).ConfigureAwait(false));
 
                     var raw = string.Join("\n", lines);
-                    var insights = PlanInsights.FromText(raw);
-                    return new AnalyzeResult(raw, insights, true);
+                    return new AnalyzeResult(raw, Array.Empty<string>(), true);
                 }
                 finally
                 {
@@ -366,8 +365,7 @@ ORDER BY t.name, fk.name, fkc.constraint_column_id";
                         lines.Add(reader.GetString(0));
 
                     var raw = string.Join("\n", lines);
-                    var insights = PlanInsights.FromText(raw);
-                    return new AnalyzeResult(raw, insights, false);
+                    return new AnalyzeResult(raw, Array.Empty<string>(), false);
                 }
                 finally
                 {

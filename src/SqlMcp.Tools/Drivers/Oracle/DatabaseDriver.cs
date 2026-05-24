@@ -317,8 +317,7 @@ ORDER BY rc.TABLE_NAME, rc.CONSTRAINT_NAME, rc.POSITION";
             }
 
             var raw = string.Join("\n", lines);
-            var insights = PlanInsights.FromText(raw);
-            return new AnalyzeResult(raw, insights, false);
+            return new AnalyzeResult(raw, Array.Empty<string>(), false);
         }
         catch (OperationCanceledException)
         {
