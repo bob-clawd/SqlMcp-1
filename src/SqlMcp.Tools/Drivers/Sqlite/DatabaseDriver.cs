@@ -197,11 +197,11 @@ ORDER BY name";
                 lines.Add(reader.GetString(reader.GetOrdinal("detail")));
 
             var raw = string.Join("\n", lines);
-            return new AnalyzeResult(raw, Array.Empty<string>(), Executed: false);
+            return new AnalyzeResult(raw, Executed: false);
         }
         catch (OperationCanceledException)
         {
-            return new AnalyzeResult(string.Empty, Array.Empty<string>(), Executed: false, TimedOut: true);
+            return new AnalyzeResult(string.Empty, Executed: false, TimedOut: true);
         }
     }
 

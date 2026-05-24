@@ -10,8 +10,7 @@ public sealed record AnalyzeQueryResponse(
     DbDialect Dialect,
     bool Executed,
     bool TimedOut,
-    string Raw,
-    IReadOnlyList<string> Insights);
+    string Raw);
 
 [McpServerToolType]
 public sealed class AnalyzeQueryTool(
@@ -43,7 +42,6 @@ public sealed class AnalyzeQueryTool(
             Dialect: db.Dialect,
             Executed: result.Executed,
             TimedOut: result.TimedOut,
-            Raw: result.Raw,
-            Insights: result.Insights);
+            Raw: result.Raw);
     }
 }

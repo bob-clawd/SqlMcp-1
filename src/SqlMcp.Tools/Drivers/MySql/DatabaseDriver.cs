@@ -253,7 +253,7 @@ WHERE TABLE_SCHEMA = DATABASE() AND REFERENCED_TABLE_NAME IS NOT NULL";
         {
             await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             var raw = await ReadExplainRawAsync(reader, cancellationToken).ConfigureAwait(false);
-            return new AnalyzeResult(raw, Array.Empty<string>(), execute);
+            return new AnalyzeResult(raw, execute);
         }
         catch (MySqlException ex) when (execute && ex.Message.Contains("EXPLAIN ANALYZE", StringComparison.OrdinalIgnoreCase))
         {
@@ -261,11 +261,11 @@ WHERE TABLE_SCHEMA = DATABASE() AND REFERENCED_TABLE_NAME IS NOT NULL";
             await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             var raw = await ReadExplainRawAsync(reader, cancellationToken).ConfigureAwait(false);
             raw += "\n\n(Note: EXPLAIN ANALYZE requires MySQL 8.0.18+. Showed plan-only output.)";
-            return new AnalyzeResult(raw, Array.Empty<string>(), false);
+            return new AnalyzeResult(raw, false);
         }
         catch (MySqlException ex) when (ex.Number == 3024 /* ER_QUERY_TIMEOUT */)
         {
-            return new AnalyzeResult(string.Empty, Array.Empty<string>(), execute, TimedOut: true);
+            return new AnalyzeResult(string.Empty, execute, TimedOut: true);
         }
     }
 

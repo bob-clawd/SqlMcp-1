@@ -51,6 +51,5 @@ public sealed record QueryResult(
 
 public sealed record AnalyzeResult(
     string Raw,
-    IReadOnlyList<string> Insights,
     bool Executed,
     bool TimedOut = false);

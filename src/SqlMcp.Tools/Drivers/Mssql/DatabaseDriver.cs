@@ -333,7 +333,7 @@ ORDER BY t.name, fk.name, fkc.constraint_column_id";
                     } while (await reader.NextResultAsync(cts.Token).ConfigureAwait(false));
 
                     var raw = string.Join("\n", lines);
-                    return new AnalyzeResult(raw, Array.Empty<string>(), true);
+                    return new AnalyzeResult(raw, true);
                 }
                 finally
                 {
@@ -365,7 +365,7 @@ ORDER BY t.name, fk.name, fkc.constraint_column_id";
                         lines.Add(reader.GetString(0));
 
                     var raw = string.Join("\n", lines);
-                    return new AnalyzeResult(raw, Array.Empty<string>(), false);
+                    return new AnalyzeResult(raw, false);
                 }
                 finally
                 {
@@ -379,11 +379,11 @@ ORDER BY t.name, fk.name, fkc.constraint_column_id";
         }
         catch (OperationCanceledException)
         {
-            return new AnalyzeResult(string.Empty, Array.Empty<string>(), execute, TimedOut: true);
+            return new AnalyzeResult(string.Empty, execute, TimedOut: true);
         }
         catch (SqlException ex) when (ex.Number == -2) // timeout
         {
-            return new AnalyzeResult(string.Empty, Array.Empty<string>(), execute, TimedOut: true);
+            return new AnalyzeResult(string.Empty, execute, TimedOut: true);
         }
     }
 

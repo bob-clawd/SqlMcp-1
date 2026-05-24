@@ -317,15 +317,15 @@ ORDER BY rc.TABLE_NAME, rc.CONSTRAINT_NAME, rc.POSITION";
             }
 
             var raw = string.Join("\n", lines);
-            return new AnalyzeResult(raw, Array.Empty<string>(), false);
+            return new AnalyzeResult(raw, false);
         }
         catch (OperationCanceledException)
         {
-            return new AnalyzeResult(string.Empty, Array.Empty<string>(), false, TimedOut: true);
+            return new AnalyzeResult(string.Empty, false, TimedOut: true);
         }
         catch (OracleException ex) when (ex.Number == 1013) // ORA-01013: user requested cancel
         {
-            return new AnalyzeResult(string.Empty, Array.Empty<string>(), false, TimedOut: true);
+            return new AnalyzeResult(string.Empty, false, TimedOut: true);
         }
     }
 

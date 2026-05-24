@@ -294,7 +294,7 @@ WHERE kcu.table_schema = current_schema()";
 
             await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             var raw = await ReadExplainLinesAsync(reader, cancellationToken).ConfigureAwait(false);
-            return new AnalyzeResult(raw, Array.Empty<string>(), false);
+            return new AnalyzeResult(raw, false);
         }
 
         // execute=true: run inside transaction with statement_timeout.
@@ -317,13 +317,13 @@ WHERE kcu.table_schema = current_schema()";
                 await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
                 var raw = await ReadExplainLinesAsync(reader, cancellationToken).ConfigureAwait(false);
                 await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
-                return new AnalyzeResult(raw, Array.Empty<string>(), true);
+                return new AnalyzeResult(raw, true);
             }
         }
         catch (PostgresException ex) when (ex.SqlState == "57014")
         {
             try { await tx.RollbackAsync(cancellationToken).ConfigureAwait(false); } catch { }
-            return new AnalyzeResult(string.Empty, Array.Empty<string>(), true, TimedOut: true);
+            return new AnalyzeResult(string.Empty, true, TimedOut: true);
         }
         catch
         {
