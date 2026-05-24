@@ -11,6 +11,9 @@ public static partial class SqlLimiter
     [GeneratedRegex(@"\bTOP\s*\(", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
     private static partial Regex TopClauseRegex();
 
+    [GeneratedRegex(@"\bFETCH\s+FIRST\b", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
+    private static partial Regex FetchFirstRegex();
+
     public static string ApplyLimitIfMissing(string sql, int maxRows, DbDialect dialect)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sql);
@@ -18,6 +21,9 @@ public static partial class SqlLimiter
 
         if (dialect == DbDialect.Mssql)
             return ApplyTopLimit(sql, capped);
+
+        if (dialect == DbDialect.Oracle)
+            return ApplyFetchFirstLimit(sql, capped);
 
         if (LimitRegex().IsMatch(sql))
             return sql;
@@ -41,4 +47,15 @@ public static partial class SqlLimiter
         return sql.Insert(selectIndex + 6, $" TOP({maxRows})");
     }
 
+    private static string ApplyFetchFirstLimit(string sql, int maxRows)
+    {
+        if (FetchFirstRegex().IsMatch(sql))
+            return sql;
+
+        var trimmed = sql.TrimEnd();
+        if (trimmed.EndsWith(';'))
+            trimmed = trimmed[..^1];
+
+        return trimmed + $" FETCH FIRST {maxRows} ROWS ONLY";
+    }
 }

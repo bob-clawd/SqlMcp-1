@@ -5,7 +5,8 @@ public enum DbDialect
     MySql,
     Postgres,
     Sqlite,
-    Mssql
+    Mssql,
+    Oracle
 }
 
 public enum DbTableType

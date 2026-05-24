@@ -2,6 +2,7 @@ using System.Net;
 using Microsoft.Data.SqlClient;
 using MySqlConnector;
 using Npgsql;
+using Oracle.ManagedDataAccess.Client;
 using DatabaseDriver = SqlMcp.Tools.Drivers.Postgres.DatabaseDriver;
 
 namespace SqlMcp.Tools.Drivers;
@@ -49,8 +50,14 @@ public static class DatabaseDriverFactory
             return new Mssql.DatabaseDriver(cs);
         }
 
+        if (connectionUri.StartsWith("oracle://", StringComparison.OrdinalIgnoreCase))
+        {
+            var cs = BuildOracleConnectionString(connectionUri, ssl);
+            return new Oracle.DatabaseDriver(cs);
+        }
+
         throw new ArgumentException(
-            "Unsupported database URI. Supported schemes: mysql://, postgres:// (postgresql://), mssql:// (sqlserver://), sqlite: (file:) or a *.db/*.sqlite/*.sqlite3 path.",
+            "Unsupported database URI. Supported schemes: mysql://, postgres:// (postgresql://), mssql:// (sqlserver://), oracle://, sqlite: (file:) or a *.db/*.sqlite/*.sqlite3 path.",
             nameof(connectionUri));
     }
 
@@ -135,6 +142,25 @@ public static class DatabaseDriverFactory
 
         if (string.IsNullOrEmpty(user) && string.IsNullOrEmpty(pass))
             b.IntegratedSecurity = true;
+
+        return b.ConnectionString;
+    }
+
+    private static string BuildOracleConnectionString(string uriText, bool ssl)
+    {
+        var uri = new Uri(uriText);
+        var serviceName = uri.AbsolutePath.Trim('/');
+
+        var userInfo = uri.UserInfo.Split(':', 2);
+        var user = WebUtility.UrlDecode(userInfo.ElementAtOrDefault(0) ?? "");
+        var pass = WebUtility.UrlDecode(userInfo.ElementAtOrDefault(1) ?? "");
+
+        var b = new OracleConnectionStringBuilder
+        {
+            DataSource = $"{uri.Host}:{(uri.Port > 0 ? uri.Port : 1521)}/{serviceName}",
+            UserID = string.IsNullOrEmpty(user) ? null : user,
+            Password = string.IsNullOrEmpty(pass) ? null : pass,
+        };
 
         return b.ConnectionString;
     }
