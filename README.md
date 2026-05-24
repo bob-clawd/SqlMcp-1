@@ -49,24 +49,18 @@ sqlmcp --db 'mssql://user:password@localhost:1433/mydb'
 sqlmcp --db 'oracle://user:password@localhost:1521/XEPDB1'
 ```
 
-Or with env vars (recommended — keeps credentials out of process listings):
 
-```bash
-DB_URL='postgres://user:password@localhost:5432/mydb' sqlmcp
-```
 
 ## Configuration
 
-| Flag | Env Var | Default | Description |
+| Flag | Default | Description |
 |---|---|---|---|
-| `--db <uri>` | `DB_URL` | required | Database connection URI |
-| `--ssl` | `SSL=true` | false | Enable SSL/TLS for connection |
-| `--allow-write` | `ALLOW_WRITE=true` | false | Enable INSERT and UPDATE |
-| `--allow-delete` | `ALLOW_DELETE=true` | false | Enable DELETE |
-| `--allow-ddl` | `ALLOW_DDL=true` | false | Enable ALTER, CREATE, DROP, TRUNCATE |
-| `--allow-drop-database` | `ALLOW_DROP_DATABASE=true` | false | Enable DROP DATABASE |
-
-CLI flags take precedence over environment variables.
+| `--db <uri>` | required | Database connection URI |
+| `--ssl` | false | Enable SSL/TLS for connection |
+| `--allow-write` | false | Enable INSERT and UPDATE |
+| `--allow-delete` | false | Enable DELETE |
+| `--allow-ddl` | false | Enable ALTER, CREATE, DROP, TRUNCATE |
+| `--allow-drop-database` | false | Enable DROP DATABASE |
 
 ## Available Tools
 

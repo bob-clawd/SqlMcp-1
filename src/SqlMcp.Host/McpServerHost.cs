@@ -23,13 +23,12 @@ public static class McpServerHost
     {
         ArgumentNullException.ThrowIfNull(args);
 
-        string? dbUri = Environment.GetEnvironmentVariable("DB_URL");
-        var ssl = string.Equals(Environment.GetEnvironmentVariable("SSL"), "true", StringComparison.OrdinalIgnoreCase);
-
-        var allowWrite = string.Equals(Environment.GetEnvironmentVariable("ALLOW_WRITE"), "true", StringComparison.OrdinalIgnoreCase);
-        var allowDelete = string.Equals(Environment.GetEnvironmentVariable("ALLOW_DELETE"), "true", StringComparison.OrdinalIgnoreCase);
-        var allowDdl = string.Equals(Environment.GetEnvironmentVariable("ALLOW_DDL"), "true", StringComparison.OrdinalIgnoreCase);
-        var allowDropDatabase = string.Equals(Environment.GetEnvironmentVariable("ALLOW_DROP_DATABASE"), "true", StringComparison.OrdinalIgnoreCase);
+        string? dbUri = null;
+        var ssl = false;
+        var allowWrite = false;
+        var allowDelete = false;
+        var allowDdl = false;
+        var allowDropDatabase = false;
 
         for (var index = 0; index < args.Length; index++)
         {
@@ -39,7 +38,7 @@ public static class McpServerHost
             {
                 case "--db":
                     if (dbUri is not null)
-                        throw new ArgumentException("The '--db' option may only be specified once (or set DB_URL).", nameof(args));
+                        throw new ArgumentException("The '--db' option may only be specified once.", nameof(args));
 
                     if (index + 1 >= args.Length)
                         throw new ArgumentException("Missing value for '--db'. Expected '--db <connection-uri>'.", nameof(args));
@@ -84,12 +83,11 @@ public static class McpServerHost
                 "  sqlmcp --db <connection-uri> [options]",
                 "",
                 "Supported databases:",
-                "  MySQL:      mysql://user:pass@host:3306/db",
                 "  PostgreSQL: postgres://user:pass@host:5432/db (or postgresql://)",
+                "  MySQL:      mysql://user:pass@host:3306/db",
                 "  SQLite:     sqlite:./path/to/file.db (or file:./path or *.db/*.sqlite/*.sqlite3)",
-                "",
-                "Environment variables:",
-                "  DB_URL, SSL=true, ALLOW_WRITE=true, ALLOW_DELETE=true, ALLOW_DDL=true, ALLOW_DROP_DATABASE=true",
+                "  SQL Server: mssql://user:pass@host:1433/db",
+                "  Oracle:     oracle://user:pass@host:1521/service",
                 "",
                 "Options:",
                 "  --ssl                   Enable SSL/TLS",
