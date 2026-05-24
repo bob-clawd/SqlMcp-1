@@ -18,7 +18,7 @@ It is **read-only by default** and requires explicit opt-in for write operations
 | **MySQL** | `mysql://user:pass@host:3306/db` |
 | **SQLite** | `sqlite:./path/to/file.db` (or `file:./path` or just `*.db`/`*.sqlite`/`*.sqlite3`) |
 | **SQL Server** | `mssql://user:pass@host:1433/db` |
-| **Oracle** | `oracle://user:pass@host:1521/service` |
+| **Oracle** | `oracle://user:pass@host:1521/sid_or_service` |
 
 The driver is auto-detected from the URI scheme.
 
@@ -34,19 +34,19 @@ dotnet tool install -g SqlMcp
 
 ```bash
 # PostgreSQL
-sqlmcp --db 'postgres://user:password@localhost:5432/mydb'
+sqlmcp --db 'postgres://user:password@localhost:5432/dbname'
 
 # MySQL
-sqlmcp --db 'mysql://user:password@localhost:3306/mydb'
+sqlmcp --db 'mysql://user:password@localhost:3306/dbname'
 
 # SQLite
-sqlmcp --db 'sqlite:./mydb.sqlite'
+sqlmcp --db 'sqlite:./path/to/database.sqlite'
 
 # SQL Server
-sqlmcp --db 'mssql://user:password@localhost:1433/mydb'
+sqlmcp --db 'mssql://user:password@localhost:1433/dbname'
 
 # Oracle
-sqlmcp --db 'oracle://user:password@localhost:1521/XEPDB1'
+sqlmcp --db 'oracle://user:password@localhost:1521/sid_or_service'
 ```
 
 

@@ -87,7 +87,7 @@ public static class McpServerHost
                 "  MySQL:      mysql://user:pass@host:3306/db",
                 "  SQLite:     sqlite:./path/to/file.db (or file:./path or *.db/*.sqlite/*.sqlite3)",
                 "  SQL Server: mssql://user:pass@host:1433/db",
-                "  Oracle:     oracle://user:pass@host:1521/service",
+                "  Oracle:     oracle://user:pass@host:1521/sid_or_service",
                 "",
                 "Options:",
                 "  --ssl                   Enable SSL/TLS",
