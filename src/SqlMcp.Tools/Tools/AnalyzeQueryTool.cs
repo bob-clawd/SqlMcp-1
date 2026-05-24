@@ -18,7 +18,7 @@ public sealed class AnalyzeQueryTool(
     SqlStatementClassifier classifier)
 {
     [McpServerTool(Name = "analyze_query", Title = "Analyze SQL Query")]
-    [Description("Analyze a SQL query for performance. Shows EXPLAIN output and detects common issues (full scans, missing indexes, sorts). Defaults to plan-only (execute=false). Set execute=true to capture actual timing for SELECT.")]
+    [Description("Analyze a SQL query for performance. Shows raw EXPLAIN output. Defaults to plan-only (execute=false). Set execute=true to capture actual timing for SELECT.")]
     public async Task<AnalyzeQueryResponse> ExecuteAsync(
         [Description("SQL statement to analyze")] string sql,
         [Description("If true, executes the query to collect actual timing (SELECT only). Default: false.")] bool execute = false,

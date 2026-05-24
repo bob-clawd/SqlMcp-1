@@ -7,16 +7,18 @@
 Agents working on a codebase only see the code — not the live database.
 When they need schema or data, they guess, leading to wrong column names, wrong types, and missed foreign keys.
 
-SqlMcp connects any MCP-compatible AI agent directly to your **MySQL, PostgreSQL, or SQLite** database.
+SqlMcp connects any MCP-compatible AI agent directly to your database.
 It is **read-only by default** and requires explicit opt-in for write operations.
 
 ## Supported Databases
 
 | Database | Connection URI |
 |---|---|
-| **MySQL** | `mysql://user:pass@host:3306/db` |
 | **PostgreSQL** | `postgres://user:pass@host:5432/db` (or `postgresql://`) |
+| **MySQL** | `mysql://user:pass@host:3306/db` |
 | **SQLite** | `sqlite:./path/to/file.db` (or `file:./path` or just `*.db`/`*.sqlite`/`*.sqlite3`) |
+| **SQL Server** | `mssql://user:pass@host:1433/db` |
+| **Oracle** | `oracle://user:pass@host:1521/service` |
 
 The driver is auto-detected from the URI scheme.
 
@@ -31,14 +33,20 @@ dotnet tool install -g SqlMcp
 ## Quick Start
 
 ```bash
-# MySQL
-sqlmcp --db 'mysql://user:password@localhost:3306/mydb'
-
 # PostgreSQL
 sqlmcp --db 'postgres://user:password@localhost:5432/mydb'
 
+# MySQL
+sqlmcp --db 'mysql://user:password@localhost:3306/mydb'
+
 # SQLite
 sqlmcp --db 'sqlite:./mydb.sqlite'
+
+# SQL Server
+sqlmcp --db 'mssql://user:password@localhost:1433/mydb'
+
+# Oracle
+sqlmcp --db 'oracle://user:password@localhost:1521/XEPDB1'
 ```
 
 Or with env vars (recommended — keeps credentials out of process listings):
@@ -63,13 +71,11 @@ CLI flags take precedence over environment variables.
 ## Available Tools
 
 | Tool | Description | Permission |
-|---|---|---|
+|---|---|---|---|
+| `execute_query` | Execute a SQL statement | Depends on statement type |
+| `analyze_query` | Show raw execution plan for a query | Plan-only by default |
 | `list_tables` | List all tables and views | Read-only (default) |
 | `describe_table` | Full schema for one table: columns, indexes, foreign keys | Read-only (default) |
-| `get_schema` | Database schema dump | Read-only (default) |
-| `get_sample_data` | Sample N rows from a table | Read-only (default) |
-| `query` | Execute a SQL statement | Depends on statement type |
-| `analyze_query` | Show execution plan and detect common issues | Plan-only by default |
 
 ## Security Model
 
