@@ -7,8 +7,6 @@ namespace SqlMcp.Tools.Drivers.Dialects;
 
 internal sealed class OracleDatabaseDriver(string connectionString) : IDatabaseDriver
 {
-    private const int MaxSampleRows = 100;
-
     public DbDialect Dialect => DbDialect.Oracle;
 
     public async Task TestConnectionAsync(CancellationToken cancellationToken = default)
@@ -169,98 +167,6 @@ ORDER BY rc.CONSTRAINT_NAME, rc.POSITION";
         }
 
         return new TableDescription(tableName, columns, indexes, foreignKeys);
-    }
-
-    public async Task<IReadOnlyList<TableDescription>> GetSchemaAsync(CancellationToken cancellationToken = default)
-    {
-        await using var conn = new OracleConnection(connectionString);
-        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
-
-        var tableMap = new Dictionary<string, (List<ColumnInfo> cols, List<ForeignKeyInfo> fks)>(StringComparer.OrdinalIgnoreCase);
-
-        await using (var cmd = conn.CreateCommand())
-        {
-            cmd.CommandText = @"SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, DATA_LENGTH, DATA_PRECISION, DATA_SCALE,
-       NULLABLE, DATA_DEFAULT, COLUMN_ID
-FROM USER_TAB_COLUMNS
-ORDER BY TABLE_NAME, COLUMN_ID";
-
-            await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-            {
-                var table = reader.GetString(0);
-                var colName = reader.GetString(1);
-                var dataType = reader.GetString(2);
-                var dataLen = reader.IsDBNull(3) ? (int?)null : reader.GetInt32(3);
-                var precision = reader.IsDBNull(4) ? (int?)null : reader.GetInt32(4);
-                var scale = reader.IsDBNull(5) ? (int?)null : reader.GetInt32(5);
-                var nullable = string.Equals(reader.GetString(6), "Y", StringComparison.OrdinalIgnoreCase);
-                var def = reader.IsDBNull(7) ? null : reader.GetValue(7)?.ToString();
-
-                if (!tableMap.TryGetValue(table, out var entry))
-                    entry = (new List<ColumnInfo>(), new List<ForeignKeyInfo>());
-
-                entry.cols.Add(new ColumnInfo(
-                    Name: colName,
-                    DataType: BuildDataType(dataType, dataLen, precision, scale),
-                    Nullable: nullable,
-                    DefaultValue: def,
-                    IsPrimaryKey: false,
-                    IsUnique: false,
-                    Extra: null));
-
-                tableMap[table] = entry;
-            }
-        }
-
-        await using (var cmd = conn.CreateCommand())
-        {
-            cmd.CommandText = @"SELECT rc.TABLE_NAME, rc.COLUMN_NAME, rc.CONSTRAINT_NAME,
-       pk.TABLE_NAME AS REF_TABLE, pk.COLUMN_NAME AS REF_COLUMN
-FROM (SELECT cc.TABLE_NAME, cc.COLUMN_NAME, cc.CONSTRAINT_NAME, cc.POSITION, c.R_CONSTRAINT_NAME
-      FROM USER_CONSTRAINTS c
-      JOIN USER_CONS_COLUMNS cc ON c.CONSTRAINT_NAME = cc.CONSTRAINT_NAME
-      WHERE c.CONSTRAINT_TYPE = 'R') rc
-JOIN USER_CONS_COLUMNS pk ON pk.CONSTRAINT_NAME = rc.R_CONSTRAINT_NAME AND pk.POSITION = rc.POSITION
-ORDER BY rc.TABLE_NAME, rc.CONSTRAINT_NAME, rc.POSITION";
-
-            await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-            {
-                var table = reader.GetString(0);
-                if (!tableMap.TryGetValue(table, out var entry))
-                    entry = (new List<ColumnInfo>(), new List<ForeignKeyInfo>());
-
-                entry.fks.Add(new ForeignKeyInfo(
-                    ConstraintName: reader.GetString(2),
-                    Column: reader.GetString(1),
-                    ReferencedTable: reader.GetString(3),
-                    ReferencedColumn: reader.GetString(4)));
-
-                tableMap[table] = entry;
-            }
-        }
-
-        return tableMap.Select(kvp => new TableDescription(kvp.Key, kvp.Value.cols, Array.Empty<IndexInfo>(), kvp.Value.fks)).ToArray();
-    }
-
-    public async Task<QueryResult> GetSampleDataAsync(string tableName, int limit, string? orderByColumn, bool orderDescending,
-        CancellationToken cancellationToken = default)
-    {
-        GuardIdentifier(tableName);
-        if (orderByColumn is not null) GuardIdentifier(orderByColumn);
-
-        var safeLimit = Math.Clamp(limit, 1, MaxSampleRows);
-        var orderClause = orderByColumn is null ? string.Empty : $" ORDER BY \"{orderByColumn}\" {(orderDescending ? "DESC" : "ASC")}";
-
-        await using var conn = new OracleConnection(connectionString);
-        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
-        await using var cmd = conn.CreateCommand();
-        cmd.CommandText = $"SELECT * FROM \"{tableName}\"{orderClause} FETCH FIRST :limit ROWS ONLY";
-        cmd.Parameters.Add(new OracleParameter(":limit", safeLimit));
-
-        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        return await ReadResultAsync(reader, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<QueryResult> ExecuteQueryAsync(string sql, bool isReadOnly, int maxRows, CancellationToken cancellationToken = default)

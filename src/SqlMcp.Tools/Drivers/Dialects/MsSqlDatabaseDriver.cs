@@ -7,8 +7,6 @@ namespace SqlMcp.Tools.Drivers.Dialects;
 
 internal sealed class MsSqlDatabaseDriver(string connectionString) : IDatabaseDriver
 {
-    private const int MaxSampleRows = 100;
-
     public DbDialect Dialect => DbDialect.Mssql;
 
     public async Task TestConnectionAsync(CancellationToken cancellationToken = default)
@@ -170,97 +168,6 @@ ORDER BY fk.name, fkc.constraint_column_id";
         }
 
         return new TableDescription(tableName, columns, indexes, foreignKeys);
-    }
-
-    public async Task<IReadOnlyList<TableDescription>> GetSchemaAsync(CancellationToken cancellationToken = default)
-    {
-        await using var conn = new SqlConnection(connectionString);
-        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
-
-        var tableMap = new Dictionary<string, (List<ColumnInfo> cols, List<ForeignKeyInfo> fks)>(StringComparer.OrdinalIgnoreCase);
-
-        await using (var cmd = conn.CreateCommand())
-        {
-            cmd.CommandText = @"SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH,
-       IS_NULLABLE, COLUMN_DEFAULT, ORDINAL_POSITION
-FROM INFORMATION_SCHEMA.COLUMNS
-WHERE TABLE_CATALOG = DB_NAME()
-ORDER BY TABLE_NAME, ORDINAL_POSITION";
-
-            await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-            {
-                var table = reader.GetString(0);
-                var colName = reader.GetString(1);
-                var dataType = reader.GetString(2);
-                var maxLen = reader.IsDBNull(3) ? (int?)null : reader.GetInt32(3);
-                var nullable = string.Equals(reader.GetString(4), "YES", StringComparison.OrdinalIgnoreCase);
-                var def = reader.IsDBNull(5) ? null : reader.GetValue(5)?.ToString();
-
-                if (!tableMap.TryGetValue(table, out var entry))
-                    entry = (new List<ColumnInfo>(), new List<ForeignKeyInfo>());
-
-                entry.cols.Add(new ColumnInfo(
-                    Name: colName,
-                    DataType: BuildDataType(dataType, maxLen),
-                    Nullable: nullable,
-                    DefaultValue: def,
-                    IsPrimaryKey: false,
-                    IsUnique: false,
-                    Extra: null));
-
-                tableMap[table] = entry;
-            }
-        }
-
-        await using (var cmd = conn.CreateCommand())
-        {
-            cmd.CommandText = @"SELECT t.name, c.name, fk.name, rt.name, rc.name
-FROM sys.foreign_keys fk
-JOIN sys.foreign_key_columns fkc ON fk.object_id = fkc.constraint_object_id
-JOIN sys.columns c ON fkc.parent_object_id = c.object_id AND fkc.parent_column_id = c.column_id
-JOIN sys.tables rt ON fkc.referenced_object_id = rt.object_id
-JOIN sys.columns rc ON fkc.referenced_object_id = rc.object_id AND fkc.referenced_column_id = rc.column_id
-JOIN sys.tables t ON fk.parent_object_id = t.object_id
-ORDER BY t.name, fk.name, fkc.constraint_column_id";
-
-            await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-            {
-                var table = reader.GetString(0);
-                if (!tableMap.TryGetValue(table, out var entry))
-                    entry = (new List<ColumnInfo>(), new List<ForeignKeyInfo>());
-
-                entry.fks.Add(new ForeignKeyInfo(
-                    ConstraintName: reader.GetString(2),
-                    Column: reader.GetString(1),
-                    ReferencedTable: reader.GetString(3),
-                    ReferencedColumn: reader.GetString(4)));
-
-                tableMap[table] = entry;
-            }
-        }
-
-        return tableMap.Select(kvp => new TableDescription(kvp.Key, kvp.Value.cols, Array.Empty<IndexInfo>(), kvp.Value.fks)).ToArray();
-    }
-
-    public async Task<QueryResult> GetSampleDataAsync(string tableName, int limit, string? orderByColumn, bool orderDescending,
-        CancellationToken cancellationToken = default)
-    {
-        GuardIdentifier(tableName);
-        if (orderByColumn is not null) GuardIdentifier(orderByColumn);
-
-        var safeLimit = Math.Clamp(limit, 1, MaxSampleRows);
-        var orderClause = orderByColumn is null ? string.Empty : $" ORDER BY [{orderByColumn}] {(orderDescending ? "DESC" : "ASC")}";
-
-        await using var conn = new SqlConnection(connectionString);
-        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
-        await using var cmd = conn.CreateCommand();
-        cmd.CommandText = $"SELECT TOP(@limit) * FROM [{tableName}]{orderClause}";
-        cmd.Parameters.AddWithValue("@limit", safeLimit);
-
-        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        return await ReadResultAsync(reader, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<QueryResult> ExecuteQueryAsync(string sql, bool isReadOnly, int maxRows, CancellationToken cancellationToken = default)

@@ -114,36 +114,6 @@ ORDER BY name";
         return new TableDescription(tableName, columns, indexes, foreignKeys);
     }
 
-    public async Task<IReadOnlyList<TableDescription>> GetSchemaAsync(CancellationToken cancellationToken = default)
-    {
-        var tables = await ListTablesAsync(cancellationToken).ConfigureAwait(false);
-        var result = new List<TableDescription>();
-
-        foreach (var t in tables.Where(t => t.Type == DbTableType.Table))
-            result.Add(await DescribeTableAsync(t.Name, cancellationToken).ConfigureAwait(false));
-
-        return result;
-    }
-
-    public async Task<QueryResult> GetSampleDataAsync(string tableName, int limit, string? orderByColumn, bool orderDescending,
-        CancellationToken cancellationToken = default)
-    {
-        GuardIdentifier(tableName);
-        if (orderByColumn is not null) GuardIdentifier(orderByColumn);
-
-        await EnsureOpenAsync(cancellationToken).ConfigureAwait(false);
-
-        var safeLimit = Math.Clamp(limit, 1, 100);
-        var orderClause = orderByColumn is null ? string.Empty : $" ORDER BY \"{orderByColumn}\" {(orderDescending ? "DESC" : "ASC")}";
-
-        await using var cmd = _connection.CreateCommand();
-        cmd.CommandText = $"SELECT * FROM \"{tableName}\"{orderClause} LIMIT @l";
-        cmd.Parameters.AddWithValue("l", safeLimit);
-
-        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        return await ReadResultAsync(reader, cancellationToken).ConfigureAwait(false);
-    }
-
     public async Task<QueryResult> ExecuteQueryAsync(string sql, bool isReadOnly, int maxRows, CancellationToken cancellationToken = default)
     {
         await EnsureOpenAsync(cancellationToken).ConfigureAwait(false);
