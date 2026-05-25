@@ -133,7 +133,7 @@ ORDER BY name";
         await using var cmd = _connection.CreateCommand();
         cmd.CommandText = sql;
         await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        return await ReadResultAsync(reader, limit, cancellationToken).ConfigureAwait(false);
+        return await reader.ReadResultAsync(limit, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<ExecutionResult> ExecuteAsync(string sql, CancellationToken cancellationToken = default)
@@ -221,22 +221,5 @@ ORDER BY name";
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             cols.Add(reader.GetString(reader.GetOrdinal("name")));
         return cols;
-    }
-
-    private static async Task<QueryResult> ReadResultAsync(SqliteDataReader reader, int maxRows, CancellationToken cancellationToken)
-    {
-        var columns = Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToArray();
-        var rows = new List<IReadOnlyList<object?>>(capacity: Math.Min(maxRows, 1000));
-
-        while (rows.Count < maxRows && await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-        {
-            var row = new List<object?>();
-            for (var i = 0; i < reader.FieldCount; i++)
-                row.Add(await reader.IsDBNullAsync(i, cancellationToken).ConfigureAwait(false) ? null : reader.GetValue(i));
-
-            rows.Add(row);
-        }
-
-        return new QueryResult(columns, rows);
-    }
+}
 }

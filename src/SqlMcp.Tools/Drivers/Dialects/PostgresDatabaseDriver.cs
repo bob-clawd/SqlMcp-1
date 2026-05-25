@@ -201,7 +201,7 @@ ORDER BY kcu.constraint_name, kcu.ordinal_position";
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = sql;
         await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        return await ReadResultAsync(reader, limit, cancellationToken).ConfigureAwait(false);
+        return await reader.ReadResultAsync(limit, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<ExecutionResult> ExecuteAsync(string sql, CancellationToken cancellationToken = default)
@@ -271,25 +271,6 @@ ORDER BY kcu.constraint_name, kcu.ordinal_position";
     {
         if (!SqlIdentifier.IsValid(name))
             throw new ArgumentException($"Invalid identifier '{name}'.", nameof(name));
-    }
-
-    private static async Task<QueryResult> ReadResultAsync(NpgsqlDataReader reader, int maxRows, CancellationToken cancellationToken)
-    {
-        var columns = Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToArray();
-        var rows = new List<IReadOnlyList<object?>>(capacity: Math.Min(maxRows, 1000));
-
-        while (rows.Count < maxRows && await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-        {
-            var row = new List<object?>();
-            for (var i = 0; i < reader.FieldCount; i++)
-            {
-                var val = await reader.IsDBNullAsync(i, cancellationToken).ConfigureAwait(false) ? null : reader.GetValue(i);
-                row.Add(val);
-            }
-            rows.Add(row);
-        }
-
-        return new QueryResult(columns, rows);
     }
 
     private static async Task<string> ReadExplainLinesAsync(NpgsqlDataReader reader, CancellationToken cancellationToken)
