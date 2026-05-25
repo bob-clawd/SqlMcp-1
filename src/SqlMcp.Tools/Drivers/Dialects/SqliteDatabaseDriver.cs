@@ -1,5 +1,7 @@
+using System.Data;
 using Microsoft.Data.Sqlite;
 using SqlMcp.Tools.Models;
+
 namespace SqlMcp.Tools.Drivers.Dialects;
 
 internal sealed class SqliteDatabaseDriver : IDatabaseDriver
@@ -195,7 +197,7 @@ ORDER BY name";
 
     private async Task EnsureOpenAsync(CancellationToken cancellationToken)
     {
-        if (_connection.State != System.Data.ConnectionState.Open)
+        if (_connection.State != ConnectionState.Open)
         {
             await _connection.OpenAsync(cancellationToken).ConfigureAwait(false);
             await using var pragma = _connection.CreateCommand();
