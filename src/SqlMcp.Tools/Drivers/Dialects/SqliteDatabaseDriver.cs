@@ -126,37 +126,38 @@ ORDER BY name";
         return new TableDescription(tableName, columns, indexes, foreignKeys);
     }
 
-    public async Task<QueryResult> ExecuteQueryAsync(string sql, bool isReadOnly, int maxRows, CancellationToken cancellationToken = default)
+    public async Task<QueryResult> QueryAsync(string sql, int limit, CancellationToken cancellationToken = default)
     {
         await EnsureOpenAsync(cancellationToken).ConfigureAwait(false);
 
         await using var cmd = _connection.CreateCommand();
         cmd.CommandText = sql;
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        return await ReadResultAsync(reader, limit, cancellationToken).ConfigureAwait(false);
+    }
 
-        if (isReadOnly)
+    public async Task<ExecutionResult> ExecuteAsync(string sql, CancellationToken cancellationToken = default)
+    {
+        await EnsureOpenAsync(cancellationToken).ConfigureAwait(false);
+
+        await using var cmd = _connection.CreateCommand();
+        cmd.CommandText = sql;
+        var affected = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        // SQLite insert id is connection-scoped; expose as string for uniformity.
+        string? insertId = null;
+        try
         {
-            await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            return await ReadResultAsync(reader, maxRows, cancellationToken).ConfigureAwait(false);
+            await using var idCmd = _connection.CreateCommand();
+            idCmd.CommandText = "SELECT last_insert_rowid();";
+            var id = await idCmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+            if (id is not null && long.TryParse(id.ToString(), out var parsed) && parsed > 0)
+                insertId = parsed.ToString();
         }
-        else
+        catch
         {
-            var affected = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-            // SQLite insert id is connection-scoped; expose as string for uniformity.
-            string? insertId = null;
-            try
-            {
-                await using var idCmd = _connection.CreateCommand();
-                idCmd.CommandText = "SELECT last_insert_rowid();";
-                var id = await idCmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-                if (id is not null && long.TryParse(id.ToString(), out var parsed) && parsed > 0)
-                    insertId = parsed.ToString();
-            }
-            catch
-            {
-                // best-effort only
-            }
-            return new QueryResult(Array.Empty<string>(), Array.Empty<IReadOnlyList<object?>>(), affected, insertId);
+            // best-effort only
         }
+        return new ExecutionResult(affected, insertId);
     }
 
     public async Task<AnalyzeResult> AnalyzeQueryAsync(string sql, bool execute, TimeSpan timeout, CancellationToken cancellationToken = default)

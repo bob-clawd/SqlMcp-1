@@ -190,23 +190,24 @@ ORDER BY rc.CONSTRAINT_NAME, rc.POSITION";
         return new TableDescription(tableName, columns, indexes, foreignKeys);
     }
 
-    public async Task<QueryResult> ExecuteQueryAsync(string sql, bool isReadOnly, int maxRows, CancellationToken cancellationToken = default)
+    public async Task<QueryResult> QueryAsync(string sql, int limit, CancellationToken cancellationToken = default)
     {
         await using var conn = new OracleConnection(connectionString);
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = sql;
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        return await ReadResultAsync(reader, limit, cancellationToken).ConfigureAwait(false);
+    }
 
-        if (isReadOnly)
-        {
-            await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            return await ReadResultAsync(reader, maxRows, cancellationToken).ConfigureAwait(false);
-        }
-        else
-        {
-            var affected = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-            return new QueryResult([], [], affected, null);
-        }
+    public async Task<ExecutionResult> ExecuteAsync(string sql, CancellationToken cancellationToken = default)
+    {
+        await using var conn = new OracleConnection(connectionString);
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = sql;
+        var affected = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        return new ExecutionResult(affected, null);
     }
 
     public async Task<AnalyzeResult> AnalyzeQueryAsync(string sql, bool execute, TimeSpan timeout, CancellationToken cancellationToken = default)

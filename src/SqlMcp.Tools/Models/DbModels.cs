@@ -45,9 +45,11 @@ public sealed record TableDescription(
 
 public sealed record QueryResult(
     IReadOnlyList<string> Columns,
-    IReadOnlyList<IReadOnlyList<object?>> Rows,
-    int? AffectedRows = null,
-    string? InsertId = null);
+    IReadOnlyList<IReadOnlyList<object?>> Rows);
+
+public sealed record ExecutionResult(
+    int? AffectedRows,
+    string? InsertId);
 
 public sealed record AnalyzeResult(
     string Raw,

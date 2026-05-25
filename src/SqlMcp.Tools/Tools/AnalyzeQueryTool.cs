@@ -12,9 +12,7 @@ public sealed record AnalyzeQueryResponse(
     string Raw);
 
 [McpServerToolType]
-public sealed class AnalyzeQueryTool(
-    IDatabaseDriver db,
-    SqlStatementClassifier classifier)
+public sealed class AnalyzeQueryTool(IDatabaseDriver db)
 {
     [McpServerTool(Name = "analyze_query", Title = "Analyze SQL Query")]
     [Description("EXPLAIN query plan. execute=true for actual timings (SELECT only).")]
@@ -27,12 +25,11 @@ public sealed class AnalyzeQueryTool(
         if (string.IsNullOrWhiteSpace(sql))
             throw new ArgumentException("sql must not be empty.", nameof(sql));
 
-        if (classifier.HasMultipleStatements(sql))
+        if (SqlTokenizer.HasMultipleStatements(sql))
             throw new ArgumentException("Multi-statement queries are not allowed. Analyze one statement at a time.", nameof(sql));
 
-        var stmtType = classifier.Classify(sql);
-        if (execute && stmtType != SqlStatementType.Select)
-            throw new InvalidOperationException($"execute=true is only allowed for SELECT statements (got {stmtType}). Use execute=false for plan-only analysis.");
+        if (execute && !IsSelectStatement(sql))
+            throw new InvalidOperationException("execute=true is only allowed for SELECT statements. Use execute=false for plan-only analysis.");
 
         var timeout = TimeSpan.FromMilliseconds(Math.Clamp(timeout_ms, 500, 60_000));
         var result = await db.AnalyzeQueryAsync(sql, execute, timeout, cancellationToken).ConfigureAwait(false);
@@ -41,5 +38,11 @@ public sealed class AnalyzeQueryTool(
             Executed: result.Executed,
             TimedOut: result.TimedOut,
             Raw: result.Raw);
+    }
+
+    private static bool IsSelectStatement(string sql)
+    {
+        var tokens = SqlTokenizer.TokenizeTopLevel(sql);
+        return tokens.Count > 0 && tokens[0].Equals("SELECT", StringComparison.OrdinalIgnoreCase);
     }
 }

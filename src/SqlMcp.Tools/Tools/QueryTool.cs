@@ -7,18 +7,14 @@ using SqlMcp.Tools.Security;
 namespace SqlMcp.Tools.Tools;
 
 public sealed record QueryResponse(
-    int? AffectedRows,
-    string? InsertId,
     IReadOnlyList<string> Columns,
     IReadOnlyList<IReadOnlyList<object?>> Rows);
 
 [McpServerToolType]
-public sealed class ExecuteQueryTool(
-    IDatabaseDriver db,
-    SqlStatementClassifier classifier)
+public sealed class QueryTool(IDatabaseDriver db)
 {
-    [McpServerTool(Name = "execute_query", Title = "Execute SQL Query")]
-    [Description("Execute a SQL statement.")]
+    [McpServerTool(Name = "query", Title = "Run a read-only SQL query")]
+    [Description("SELECT, SHOW, DESCRIBE, EXPLAIN only.")]
     public async Task<QueryResponse> ExecuteAsync(
         [Description("SQL to execute")] string sql,
         [Description("Max rows")] int limit = 100,
@@ -27,19 +23,12 @@ public sealed class ExecuteQueryTool(
         if (string.IsNullOrWhiteSpace(sql))
             throw new ArgumentException("sql must not be empty.", nameof(sql));
 
-        if (classifier.HasMultipleStatements(sql))
+        if (SqlTokenizer.HasMultipleStatements(sql))
             throw new ArgumentException("Multi-statement queries are not allowed. Execute one statement at a time.", nameof(sql));
 
-        var stmtType = classifier.Classify(sql);
-        var isReadOnly = stmtType is SqlStatementType.Select or SqlStatementType.Show or SqlStatementType.Describe or SqlStatementType.Explain;
-
         var cappedLimit = Math.Clamp(limit, 1, 10_000);
-        var result = await db.ExecuteQueryAsync(sql, isReadOnly, cappedLimit, cancellationToken).ConfigureAwait(false);
+        var result = await db.QueryAsync(sql, cappedLimit, cancellationToken).ConfigureAwait(false);
 
-        return new QueryResponse(
-            AffectedRows: result.AffectedRows,
-            InsertId: result.InsertId,
-            Columns: result.Columns,
-            Rows: result.Rows);
+        return new QueryResponse(result.Columns, result.Rows);
     }
 }

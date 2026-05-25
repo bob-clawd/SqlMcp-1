@@ -2,7 +2,6 @@ using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Server;
 using SqlMcp.Tools.Drivers;
-using SqlMcp.Tools.Security;
 
 namespace SqlMcp.Tools;
 
@@ -16,7 +15,6 @@ public static class ServiceExtensions
 
         private IServiceCollection AddInfrastructure(SqlMcpOptions options) => services
             .AddSingleton(options)
-            .AddSingleton<SqlStatementClassifier>()
             .AddSingleton<IDatabaseDriver>(_ => DatabaseDriverFactory.Create(options.ConnectionUri, options.UseSsl));
 
         private IServiceCollection AddTools()

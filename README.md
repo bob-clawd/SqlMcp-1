@@ -60,7 +60,8 @@ sqlmcp --db 'oracle://user:pass@localhost:1521/sid_or_service'
 
 | Tool | Description |
 | :--- | :--- |
-| `execute_query` | Execute a SQL statement. |
+| `query` | Read-only SQL — SELECT, SHOW, DESCRIBE, EXPLAIN. |
+| `execute` | Write SQL — INSERT, UPDATE, DELETE, ALTER, CREATE, DROP, TRUNCATE. Requires `confirm=true`. |
 | `analyze_query` | EXPLAIN query plan. `execute=true` for actual timings (SELECT only). |
 | `list_tables` | All tables and views in the database. |
 | `describe_table` | Full schema: columns, indexes, foreign keys. |

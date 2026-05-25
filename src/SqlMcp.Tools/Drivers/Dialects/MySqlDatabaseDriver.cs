@@ -139,36 +139,37 @@ ORDER BY CONSTRAINT_NAME, ORDINAL_POSITION";
         return new TableDescription(tableName, columns, indexes, foreignKeys);
     }
 
-    public async Task<QueryResult> ExecuteQueryAsync(string sql, bool isReadOnly, int maxRows, CancellationToken cancellationToken = default)
+    public async Task<QueryResult> QueryAsync(string sql, int limit, CancellationToken cancellationToken = default)
     {
         await using var conn = new MySqlConnection(connectionString);
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = sql;
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        return await ReadResultAsync(reader, limit, cancellationToken).ConfigureAwait(false);
+    }
 
-        if (isReadOnly)
+    public async Task<ExecutionResult> ExecuteAsync(string sql, CancellationToken cancellationToken = default)
+    {
+        await using var conn = new MySqlConnection(connectionString);
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = sql;
+        var affected = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        string? insertId = null;
+        try
         {
-            await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            return await ReadResultAsync(reader, maxRows, cancellationToken).ConfigureAwait(false);
+            await using var idCmd = conn.CreateCommand();
+            idCmd.CommandText = "SELECT LAST_INSERT_ID()";
+            var id = await idCmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+            if (id is not null && long.TryParse(id.ToString(), out var parsed) && parsed > 0)
+                insertId = parsed.ToString();
         }
-        else
+        catch
         {
-            var affected = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-            string? insertId = null;
-            try
-            {
-                await using var idCmd = conn.CreateCommand();
-                idCmd.CommandText = "SELECT LAST_INSERT_ID()";
-                var id = await idCmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-                if (id is not null && long.TryParse(id.ToString(), out var parsed) && parsed > 0)
-                    insertId = parsed.ToString();
-            }
-            catch
-            {
-                // best-effort only
-            }
-            return new QueryResult([], [], affected, insertId);
+            // best-effort only
         }
+        return new ExecutionResult(affected, insertId);
     }
 
     public async Task<AnalyzeResult> AnalyzeQueryAsync(string sql, bool execute, TimeSpan timeout, CancellationToken cancellationToken = default)
