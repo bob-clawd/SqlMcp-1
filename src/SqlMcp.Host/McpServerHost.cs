@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using SqlMcp.Tools;
 
 namespace SqlMcp.Host;
@@ -11,8 +10,6 @@ public static class McpServerHost
         var options = ParseOptions(args);
 
         var builder = Microsoft.Extensions.Hosting.Host.CreateApplicationBuilder(args);
-        builder.Logging.ClearProviders();
-
         builder.Services.Compose(options);
 
         var host = builder.Build();
@@ -75,29 +72,8 @@ public static class McpServerHost
         }
 
         if (string.IsNullOrWhiteSpace(dbUri))
-        {
-            Console.Error.WriteLine(string.Join('\n',
-                "sqlmcp: database connection URI is required.",
-                "",
-                "Usage:",
-                "  sqlmcp --db <connection-uri> [options]",
-                "",
-                "Supported databases:",
-                "  PostgreSQL: postgres://user:pass@host:5432/db (or postgresql://)",
-                "  MySQL:      mysql://user:pass@host:3306/db",
-                "  SQLite:     sqlite:./path/to/file.db (or file:./path or *.db/*.sqlite/*.sqlite3)",
-                "  SQL Server: mssql://user:pass@host:1433/db",
-                "  Oracle:     oracle://user:pass@host:1521/sid_or_service",
-                "",
-                "Options:",
-                "  --ssl                   Enable SSL/TLS",
-                "  --allow-write           Enable INSERT and UPDATE",
-                "  --allow-delete          Enable DELETE",
-                "  --allow-ddl             Enable ALTER, CREATE, DROP, TRUNCATE",
-                "  --allow-drop-database   Enable DROP DATABASE"));
-
-            Environment.Exit(1);
-        }
+            throw new ArgumentException(
+                "Database connection URI is required. Use --db <connection-uri>.", nameof(args));
 
         return new SqlMcpOptions(
             ConnectionUri: dbUri!,

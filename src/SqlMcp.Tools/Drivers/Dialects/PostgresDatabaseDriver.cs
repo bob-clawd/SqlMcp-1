@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.RegularExpressions;
 using Npgsql;
 using SqlMcp.Tools.Models;
@@ -7,6 +8,29 @@ namespace SqlMcp.Tools.Drivers.Dialects;
 
 internal sealed class PostgresDatabaseDriver(string connectionString) : IDatabaseDriver
 {
+    public static IDatabaseDriver Create(string uri, bool ssl)
+    {
+        var parsedUri = new Uri(uri);
+        var db = parsedUri.AbsolutePath.Trim('/');
+        var userInfo = parsedUri.UserInfo.Split(':', 2);
+        var user = WebUtility.UrlDecode(userInfo.ElementAtOrDefault(0) ?? "");
+        var pass = WebUtility.UrlDecode(userInfo.ElementAtOrDefault(1) ?? "");
+
+        var b = new NpgsqlConnectionStringBuilder
+        {
+            Host = parsedUri.Host,
+            Port = parsedUri.Port > 0 ? parsedUri.Port : 5432,
+            Username = user,
+            Password = pass,
+            Database = db,
+        };
+
+        if (ssl)
+            b.SslMode = SslMode.Require;
+
+        return new PostgresDatabaseDriver(b.ConnectionString);
+    }
+
     private readonly NpgsqlDataSource _dataSource = NpgsqlDataSource.Create(connectionString);
 
     public DbDialect Dialect => DbDialect.Postgres;

@@ -2,7 +2,7 @@ namespace SqlMcp.Host;
 
 public static class Program
 {
-    public static async Task Main(string[] args)
+    public static async Task<int> Main(string[] args)
     {
         using var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, eventArgs) =>
@@ -11,6 +11,15 @@ public static class Program
             cts.Cancel();
         };
 
-        await McpServerHost.RunAsync(args, cts.Token).ConfigureAwait(false);
+        try
+        {
+            await McpServerHost.RunAsync(args, cts.Token).ConfigureAwait(false);
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            await Console.Error.WriteLineAsync(ex.Message);
+            return 1;
+        }
     }
 }

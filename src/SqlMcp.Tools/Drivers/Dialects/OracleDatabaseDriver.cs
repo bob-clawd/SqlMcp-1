@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.RegularExpressions;
 using Oracle.ManagedDataAccess.Client;
 using SqlMcp.Tools.Models;
@@ -7,6 +8,27 @@ namespace SqlMcp.Tools.Drivers.Dialects;
 
 internal sealed class OracleDatabaseDriver(string connectionString) : IDatabaseDriver
 {
+    public static IDatabaseDriver Create(string uri, bool ssl)
+    {
+        var parsedUri = new Uri(uri);
+        var serviceName = parsedUri.AbsolutePath.Trim('/');
+        var userInfo = parsedUri.UserInfo.Split(':', 2);
+        var user = WebUtility.UrlDecode(userInfo.ElementAtOrDefault(0) ?? "");
+        var pass = WebUtility.UrlDecode(userInfo.ElementAtOrDefault(1) ?? "");
+
+        var b = new OracleConnectionStringBuilder
+        {
+            DataSource = $"{parsedUri.Host}:{(parsedUri.Port > 0 ? parsedUri.Port : 1521)}/{serviceName}",
+            UserID = string.IsNullOrEmpty(user) ? null : user,
+            Password = string.IsNullOrEmpty(pass) ? null : pass,
+        };
+
+        if (ssl)
+            b["SSL"] = "TRUE";
+
+        return new OracleDatabaseDriver(b.ConnectionString);
+    }
+
     public DbDialect Dialect => DbDialect.Oracle;
 
     public async Task TestConnectionAsync(CancellationToken cancellationToken = default)

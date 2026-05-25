@@ -7,6 +7,19 @@ namespace SqlMcp.Tools.Drivers.Dialects;
 
 internal sealed class SqliteDatabaseDriver : IDatabaseDriver
 {
+    public static IDatabaseDriver Create(string uri)
+    {
+        var path = uri;
+        path = path.Replace("sqlite:", "", StringComparison.OrdinalIgnoreCase);
+        path = path.Replace("file:", "", StringComparison.OrdinalIgnoreCase);
+        path = path.Trim();
+
+        if (string.IsNullOrWhiteSpace(path))
+            throw new ArgumentException("SQLite path must not be empty.", nameof(uri));
+
+        return new SqliteDatabaseDriver(path);
+    }
+
     private readonly SqliteConnection _connection;
 
     public SqliteDatabaseDriver(string filePath)

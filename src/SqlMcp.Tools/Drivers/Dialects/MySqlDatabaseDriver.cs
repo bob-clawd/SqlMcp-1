@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.RegularExpressions;
 using MySqlConnector;
 using SqlMcp.Tools.Models;
@@ -7,6 +8,30 @@ namespace SqlMcp.Tools.Drivers.Dialects;
 
 internal sealed class MySqlDatabaseDriver(string connectionString) : IDatabaseDriver
 {
+    public static IDatabaseDriver Create(string uri, bool ssl)
+    {
+        var parsedUri = new Uri(uri);
+        var db = parsedUri.AbsolutePath.Trim('/');
+        var userInfo = parsedUri.UserInfo.Split(':', 2);
+        var user = WebUtility.UrlDecode(userInfo.ElementAtOrDefault(0) ?? "");
+        var pass = WebUtility.UrlDecode(userInfo.ElementAtOrDefault(1) ?? "");
+
+        var b = new MySqlConnectionStringBuilder
+        {
+            Server = parsedUri.Host,
+            Port = parsedUri.Port > 0 ? (uint)parsedUri.Port : 3306,
+            UserID = user,
+            Password = pass,
+            Database = db,
+            AllowUserVariables = false,
+        };
+
+        if (ssl)
+            b.SslMode = MySqlSslMode.Required;
+
+        return new MySqlDatabaseDriver(b.ConnectionString);
+    }
+
     public DbDialect Dialect => DbDialect.MySql;
 
     public async Task TestConnectionAsync(CancellationToken cancellationToken = default)
