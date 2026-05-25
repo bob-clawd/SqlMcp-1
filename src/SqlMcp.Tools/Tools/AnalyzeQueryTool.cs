@@ -17,11 +17,11 @@ public sealed class AnalyzeQueryTool(
     SqlStatementClassifier classifier)
 {
     [McpServerTool(Name = "analyze_query", Title = "Analyze SQL Query")]
-    [Description("Analyze a SQL query for performance. Shows raw EXPLAIN output. Defaults to plan-only (execute=false). Set execute=true to capture actual timing for SELECT.")]
+    [Description("EXPLAIN query plan. execute=true for actual timings (SELECT only).")]
     public async Task<AnalyzeQueryResponse> ExecuteAsync(
-        [Description("SQL statement to analyze")] string sql,
-        [Description("If true, executes the query to collect actual timing (SELECT only). Default: false.")] bool execute = false,
-        [Description("Hard timeout in milliseconds for analyze. Default: 5000ms.")] int timeout_ms = 5000,
+        [Description("SQL to analyze")] string sql,
+        [Description("Execute for actual timings (SELECT only)")] bool execute = false,
+        [Description("Timeout in milliseconds")] int timeout_ms = 5000,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(sql))

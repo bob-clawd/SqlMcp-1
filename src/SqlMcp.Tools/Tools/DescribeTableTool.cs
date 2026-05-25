@@ -12,7 +12,7 @@ public sealed record DescribeTableResponse(
 public sealed class DescribeTableTool(IDatabaseDriver db)
 {
     [McpServerTool(Name = "describe_table", Title = "Describe Table")]
-    [Description("Get full schema for one table: columns, indexes, and foreign keys.")]
+    [Description("Full schema: columns, indexes, foreign keys.")]
     public async Task<DescribeTableResponse> ExecuteAsync(
         [Description("Table name")] string table_name,
         CancellationToken cancellationToken = default)

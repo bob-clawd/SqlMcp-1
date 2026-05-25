@@ -13,16 +13,16 @@ public sealed record QueryResponse(
     IReadOnlyList<IReadOnlyList<object?>> Rows);
 
 [McpServerToolType]
-public sealed class QueryTool(
+public sealed class ExecuteQueryTool(
     IDatabaseDriver db,
     SqlStatementClassifier classifier,
     SqlPermissionOptions permissions)
 {
     [McpServerTool(Name = "execute_query", Title = "Execute SQL Query")]
-    [Description("Execute a SQL statement against the connected database. Read operations (SELECT/SHOW/DESCRIBE/EXPLAIN) are always allowed. Write/DDL require explicit opt-in via startup flags.")]
+    [Description("Execute a SQL statement. Read-only always allowed; write/DDL need startup flags.")]
     public async Task<QueryResponse> ExecuteAsync(
-        [Description("SQL statement to execute")] string sql,
-        [Description("Maximum rows to return (default: 100)")] int limit = 100,
+        [Description("SQL to execute")] string sql,
+        [Description("Max rows")] int limit = 100,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(sql))

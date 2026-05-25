@@ -14,7 +14,7 @@ public sealed record ListTablesResponse(
 public sealed class ListTablesTool(IDatabaseDriver db)
 {
     [McpServerTool(Name = "list_tables", Title = "List Tables")]
-    [Description("List all tables and views in the database.")]
+    [Description("All tables and views in the database.")]
     public async Task<ListTablesResponse> ExecuteAsync(CancellationToken cancellationToken = default)
     {
         var all = await db.ListTablesAsync(cancellationToken).ConfigureAwait(false);
