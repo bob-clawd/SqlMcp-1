@@ -33,14 +33,6 @@ internal sealed class SqliteDatabaseDriver : IDatabaseDriver
 
     public DbDialect Dialect => DbDialect.Sqlite;
 
-    public async Task TestConnectionAsync(CancellationToken cancellationToken = default)
-    {
-        await _connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-        await using var cmd = _connection.CreateCommand();
-        cmd.CommandText = "SELECT 1";
-        _ = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-    }
-
     public async Task<IReadOnlyList<TableInfo>> ListTablesAsync(CancellationToken cancellationToken = default)
     {
         await EnsureOpenAsync(cancellationToken).ConfigureAwait(false);

@@ -6,7 +6,6 @@ public interface IDatabaseDriver : IAsyncDisposable
 {
     DbDialect Dialect { get; }
 
-    Task TestConnectionAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<TableInfo>> ListTablesAsync(CancellationToken cancellationToken = default);
     Task<TableDescription> DescribeTableAsync(string tableName, CancellationToken cancellationToken = default);
 

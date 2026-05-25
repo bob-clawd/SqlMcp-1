@@ -31,15 +31,6 @@ internal sealed class MySqlDatabaseDriver(string connectionString) : IDatabaseDr
 
     public DbDialect Dialect => DbDialect.MySql;
 
-    public async Task TestConnectionAsync(CancellationToken cancellationToken = default)
-    {
-        await using var conn = new MySqlConnection(connectionString);
-        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
-        await using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT 1";
-        _ = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-    }
-
     public async Task<IReadOnlyList<TableInfo>> ListTablesAsync(CancellationToken cancellationToken = default)
     {
         await using var conn = new MySqlConnection(connectionString);

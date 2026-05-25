@@ -28,15 +28,6 @@ internal sealed class OracleDatabaseDriver(string connectionString) : IDatabaseD
 
     public DbDialect Dialect => DbDialect.Oracle;
 
-    public async Task TestConnectionAsync(CancellationToken cancellationToken = default)
-    {
-        await using var conn = new OracleConnection(connectionString);
-        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
-        await using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT 1 FROM DUAL";
-        _ = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-    }
-
     public async Task<IReadOnlyList<TableInfo>> ListTablesAsync(CancellationToken cancellationToken = default)
     {
         await using var conn = new OracleConnection(connectionString);

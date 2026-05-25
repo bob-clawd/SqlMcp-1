@@ -32,14 +32,6 @@ internal sealed class PostgresDatabaseDriver(string connectionString) : IDatabas
 
     public DbDialect Dialect => DbDialect.Postgres;
 
-    public async Task TestConnectionAsync(CancellationToken cancellationToken = default)
-    {
-        await using var conn = await _dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-        await using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT 1";
-        _ = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-    }
-
     public async Task<IReadOnlyList<TableInfo>> ListTablesAsync(CancellationToken cancellationToken = default)
     {
         await using var conn = await _dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);

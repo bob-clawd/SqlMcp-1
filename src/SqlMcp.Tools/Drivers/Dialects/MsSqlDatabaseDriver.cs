@@ -31,15 +31,6 @@ internal sealed class MsSqlDatabaseDriver(string connectionString) : IDatabaseDr
 
     public DbDialect Dialect => DbDialect.Mssql;
 
-    public async Task TestConnectionAsync(CancellationToken cancellationToken = default)
-    {
-        await using var conn = new SqlConnection(connectionString);
-        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
-        await using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT 1";
-        _ = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-    }
-
     public async Task<IReadOnlyList<TableInfo>> ListTablesAsync(CancellationToken cancellationToken = default)
     {
         await using var conn = new SqlConnection(connectionString);
