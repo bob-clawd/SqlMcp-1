@@ -7,7 +7,6 @@ using SqlMcp.Tools.Security;
 namespace SqlMcp.Tools.Tools;
 
 public sealed record AnalyzeQueryResponse(
-    DbDialect Dialect,
     bool Executed,
     bool TimedOut,
     string Raw);
@@ -39,7 +38,6 @@ public sealed class AnalyzeQueryTool(
         var result = await db.AnalyzeQueryAsync(sql, execute, timeout, cancellationToken).ConfigureAwait(false);
 
         return new AnalyzeQueryResponse(
-            Dialect: db.Dialect,
             Executed: result.Executed,
             TimedOut: result.TimedOut,
             Raw: result.Raw);
