@@ -13,6 +13,5 @@ public enum SqlStatementType
     Alter,
     Create,
     Drop,
-    Truncate,
-    DropDatabase
+    Truncate
 }

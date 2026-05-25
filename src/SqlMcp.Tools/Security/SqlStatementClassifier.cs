@@ -31,13 +31,7 @@ public sealed class SqlStatementClassifier
     private static SqlStatementType MapSimple(string first, IReadOnlyList<string> tokens, int index)
     {
         if (first == "DROP")
-        {
-            var second = tokens.Count > index + 1 ? tokens[index + 1].ToUpperInvariant() : string.Empty;
-            if (second is "DATABASE" or "SCHEMA")
-                return SqlStatementType.DropDatabase;
-
             return SqlStatementType.Drop;
-        }
 
         return first switch
         {
