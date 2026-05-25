@@ -1,8 +1,6 @@
 using System.Net;
 using MySqlConnector;
 using SqlMcp.Tools.Models;
-using SqlMcp.Tools.Security;
-
 namespace SqlMcp.Tools.Drivers.Dialects;
 
 internal sealed class MySqlDatabaseDriver(string connectionString) : IDatabaseDriver
@@ -62,7 +60,7 @@ internal sealed class MySqlDatabaseDriver(string connectionString) : IDatabaseDr
 
     public async Task<TableDescription> DescribeTableAsync(string tableName, CancellationToken cancellationToken = default)
     {
-        GuardIdentifier(tableName);
+        DriverExtensions.GuardIdentifier(tableName);
 
         await using var conn = new MySqlConnection(connectionString);
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -215,12 +213,6 @@ ORDER BY CONSTRAINT_NAME, ORDINAL_POSITION";
     }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
-
-    private static void GuardIdentifier(string name)
-    {
-        if (!SqlIdentifier.IsValid(name))
-            throw new ArgumentException($"Invalid identifier '{name}'.", nameof(name));
-    }
 
     private static async Task<string> ReadExplainRawAsync(MySqlDataReader reader, CancellationToken cancellationToken)
     {

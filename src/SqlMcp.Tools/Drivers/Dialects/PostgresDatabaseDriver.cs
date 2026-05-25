@@ -1,8 +1,6 @@
 using System.Net;
 using Npgsql;
 using SqlMcp.Tools.Models;
-using SqlMcp.Tools.Security;
-
 namespace SqlMcp.Tools.Drivers.Dialects;
 
 internal sealed class PostgresDatabaseDriver(string connectionString) : IDatabaseDriver
@@ -65,7 +63,7 @@ ORDER BY table_name";
 
     public async Task<TableDescription> DescribeTableAsync(string tableName, CancellationToken cancellationToken = default)
     {
-        GuardIdentifier(tableName);
+        DriverExtensions.GuardIdentifier(tableName);
 
         await using var conn = await _dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
 
@@ -266,12 +264,6 @@ ORDER BY kcu.constraint_name, kcu.ordinal_position";
     }
 
     public async ValueTask DisposeAsync() => await _dataSource.DisposeAsync().ConfigureAwait(false);
-
-    private static void GuardIdentifier(string name)
-    {
-        if (!SqlIdentifier.IsValid(name))
-            throw new ArgumentException($"Invalid identifier '{name}'.", nameof(name));
-    }
 
     private static async Task<string> ReadExplainLinesAsync(NpgsqlDataReader reader, CancellationToken cancellationToken)
     {

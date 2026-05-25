@@ -1,8 +1,6 @@
 using System.Net;
 using Oracle.ManagedDataAccess.Client;
 using SqlMcp.Tools.Models;
-using SqlMcp.Tools.Security;
-
 namespace SqlMcp.Tools.Drivers.Dialects;
 
 internal sealed class OracleDatabaseDriver(string connectionString) : IDatabaseDriver
@@ -62,7 +60,7 @@ ORDER BY TABLE_NAME";
 
     public async Task<TableDescription> DescribeTableAsync(string tableName, CancellationToken cancellationToken = default)
     {
-        GuardIdentifier(tableName);
+        DriverExtensions.GuardIdentifier(tableName);
 
         await using var conn = new OracleConnection(connectionString);
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -259,12 +257,6 @@ ORDER BY rc.CONSTRAINT_NAME, rc.POSITION";
     }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
-
-    private static void GuardIdentifier(string name)
-    {
-        if (!SqlIdentifier.IsValid(name))
-            throw new ArgumentException($"Invalid identifier '{name}'.", nameof(name));
-    }
 
     private static string BuildDataType(string baseType, int? dataLength, int? precision, int? scale)
     {

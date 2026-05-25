@@ -1,7 +1,5 @@
 using Microsoft.Data.Sqlite;
 using SqlMcp.Tools.Models;
-using SqlMcp.Tools.Security;
-
 namespace SqlMcp.Tools.Drivers.Dialects;
 
 internal sealed class SqliteDatabaseDriver : IDatabaseDriver
@@ -62,7 +60,7 @@ ORDER BY name";
 
     public async Task<TableDescription> DescribeTableAsync(string tableName, CancellationToken cancellationToken = default)
     {
-        GuardIdentifier(tableName);
+        DriverExtensions.GuardIdentifier(tableName);
         await EnsureOpenAsync(cancellationToken).ConfigureAwait(false);
 
         var columns = new List<ColumnInfo>();
@@ -193,12 +191,6 @@ ORDER BY name";
     {
         await _connection.CloseAsync().ConfigureAwait(false);
         await _connection.DisposeAsync().ConfigureAwait(false);
-    }
-
-    private static void GuardIdentifier(string name)
-    {
-        if (!SqlIdentifier.IsValid(name))
-            throw new ArgumentException($"Invalid identifier '{name}'.", nameof(name));
     }
 
     private async Task EnsureOpenAsync(CancellationToken cancellationToken)
