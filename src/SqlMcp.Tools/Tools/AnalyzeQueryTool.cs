@@ -10,7 +10,10 @@ public sealed record AnalyzeQueryResponse(
     bool Executed = false,
     bool TimedOut = false,
     string? Raw = null,
-    ToolError? Error = null);
+    ErrorInfo? Error = null)
+{
+    public static AnalyzeQueryResponse AsError(ErrorInfo error) => new(Error: error);
+}
 
 [McpServerToolType]
 public sealed class AnalyzeQueryTool(IDatabaseDriver db)
@@ -24,13 +27,15 @@ public sealed class AnalyzeQueryTool(IDatabaseDriver db)
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(sql))
-            return new AnalyzeQueryResponse(Error: new ToolError("sql must not be empty."));
+            return AnalyzeQueryResponse.AsError(new ErrorInfo("sql must not be empty."));
 
         if (SqlTokenizer.HasMultipleStatements(sql))
-            return new AnalyzeQueryResponse(Error: new ToolError("Multi-statement queries are not allowed. Analyze one statement at a time."));
+            return AnalyzeQueryResponse.AsError(new ErrorInfo("Multi-statement queries are not allowed. Analyze one statement at a time.",
+                new Dictionary<string, string> { ["sql"] = sql }));
 
         if (execute && !IsSelectStatement(sql))
-            return new AnalyzeQueryResponse(Error: new ToolError("execute=true is only allowed for SELECT statements. Use execute=false for plan-only analysis."));
+            return AnalyzeQueryResponse.AsError(new ErrorInfo("execute=true is only allowed for SELECT statements. Use execute=false for plan-only analysis.",
+                new Dictionary<string, string> { ["sql"] = sql }));
 
         var timeout = TimeSpan.FromMilliseconds(Math.Clamp(timeout_ms, 500, 60_000));
         var result = await db.AnalyzeQueryAsync(sql, execute, timeout, cancellationToken).ConfigureAwait(false);

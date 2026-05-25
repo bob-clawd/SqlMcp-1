@@ -9,7 +9,10 @@ public sealed record ListTablesResponse(
     DbDialect Dialect,
     IReadOnlyList<string> Tables,
     IReadOnlyList<string> Views,
-    ToolError? Error = null);
+    ErrorInfo? Error = null)
+{
+    public static ListTablesResponse AsError(ErrorInfo error) => new(default, [], [], error);
+}
 
 [McpServerToolType]
 public sealed class ListTablesTool(IDatabaseDriver db)

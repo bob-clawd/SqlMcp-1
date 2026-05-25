@@ -9,7 +9,10 @@ namespace SqlMcp.Tools.Tools;
 public sealed record ExecuteResponse(
     int? AffectedRows = null,
     string? InsertId = null,
-    ToolError? Error = null);
+    ErrorInfo? Error = null)
+{
+    public static ExecuteResponse AsError(ErrorInfo error) => new(Error: error);
+}
 
 [McpServerToolType]
 public sealed class ExecuteTool(IDatabaseDriver db)
@@ -22,13 +25,14 @@ public sealed class ExecuteTool(IDatabaseDriver db)
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(sql))
-            return new ExecuteResponse(Error: new ToolError("sql must not be empty."));
+            return ExecuteResponse.AsError(new ErrorInfo("sql must not be empty."));
 
         if (SqlTokenizer.HasMultipleStatements(sql))
-            return new ExecuteResponse(Error: new ToolError("Multi-statement queries are not allowed. Execute one statement at a time."));
+            return ExecuteResponse.AsError(new ErrorInfo("Multi-statement queries are not allowed. Execute one statement at a time.",
+                new Dictionary<string, string> { ["sql"] = sql }));
 
         if (!confirm)
-            return new ExecuteResponse(Error: new ToolError("Set confirm=true to execute write statements."));
+            return ExecuteResponse.AsError(new ErrorInfo("Set confirm=true to execute write statements."));
 
         var result = await db.ExecuteAsync(sql, cancellationToken).ConfigureAwait(false);
 

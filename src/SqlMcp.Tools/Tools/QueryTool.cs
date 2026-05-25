@@ -9,7 +9,10 @@ namespace SqlMcp.Tools.Tools;
 public sealed record QueryResponse(
     IReadOnlyList<string>? Columns = null,
     IReadOnlyList<IReadOnlyList<object?>>? Rows = null,
-    ToolError? Error = null);
+    ErrorInfo? Error = null)
+{
+    public static QueryResponse AsError(ErrorInfo error) => new(Error: error);
+}
 
 [McpServerToolType]
 public sealed class QueryTool(IDatabaseDriver db)
@@ -22,10 +25,11 @@ public sealed class QueryTool(IDatabaseDriver db)
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(sql))
-            return new QueryResponse(Error: new ToolError("sql must not be empty."));
+            return QueryResponse.AsError(new ErrorInfo("sql must not be empty."));
 
         if (SqlTokenizer.HasMultipleStatements(sql))
-            return new QueryResponse(Error: new ToolError("Multi-statement queries are not allowed. Execute one statement at a time."));
+            return QueryResponse.AsError(new ErrorInfo("Multi-statement queries are not allowed. Execute one statement at a time.",
+                new Dictionary<string, string> { ["sql"] = sql }));
 
         var cappedLimit = Math.Clamp(limit, 1, 10_000);
         var result = await db.QueryAsync(sql, cappedLimit, cancellationToken).ConfigureAwait(false);
