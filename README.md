@@ -34,22 +34,20 @@ dotnet tool install -g SqlMcp
 
 ```bash
 # PostgreSQL
-sqlmcp --db 'postgres://user:password@localhost:5432/dbname'
+sqlmcp --db 'postgres://user:pass@localhost:5432/db'
 
 # MySQL
-sqlmcp --db 'mysql://user:password@localhost:3306/dbname'
+sqlmcp --db 'mysql://user:pass@localhost:3306/db'
 
 # SQLite
-sqlmcp --db 'sqlite:./path/to/database.sqlite'
+sqlmcp --db 'sqlite:./path/to/db.sqlite'
 
 # SQL Server
-sqlmcp --db 'mssql://user:password@localhost:1433/dbname'
+sqlmcp --db 'mssql://user:pass@localhost:1433/db'
 
 # Oracle
-sqlmcp --db 'oracle://user:password@localhost:1521/sid_or_service'
+sqlmcp --db 'oracle://user:pass@localhost:1521/sid_or_service'
 ```
-
-
 
 ## Configuration
 
@@ -66,10 +64,10 @@ sqlmcp --db 'oracle://user:password@localhost:1521/sid_or_service'
 
 | Tool | Description | Permission |
 | :--- | :--- | :--- |
-| `execute_query` | Execute a SQL statement | Depends on statement type |
-| `analyze_query` | Show raw execution plan for a query | Plan-only by default |
-| `list_tables` | List all tables and views | Read-only (default) |
-| `describe_table` | Full schema for one table: columns, indexes, foreign keys | Read-only (default) |
+| `execute_query` | Execute a SQL statement. Read-only always allowed; write/DDL need startup flags. | Depends on statement type |
+| `analyze_query` | EXPLAIN query plan. `execute=true` for actual timings (SELECT only). | Plan-only by default |
+| `list_tables` | All tables and views in the database. | Read-only (default) |
+| `describe_table` | Full schema: columns, indexes, foreign keys. | Read-only (default) |
 
 ## Security Model
 
@@ -84,5 +82,4 @@ sqlmcp --db 'oracle://user:password@localhost:1521/sid_or_service'
 
 ```bash
 dotnet build SqlMcp.slnx
-dotnet test SqlMcp.slnx
 ```
