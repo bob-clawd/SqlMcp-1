@@ -20,14 +20,10 @@ public sealed class ExecuteTool(IDatabaseDriver db)
     [Description("INSERT, UPDATE, DELETE, ALTER, CREATE, DROP, TRUNCATE.")]
     public async Task<ExecuteResponse> ExecuteAsync(
         [Description("SQL to execute")] string sql,
-        [Description("Confirm write operation")] bool confirm = false,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(sql))
             return ExecuteResponse.AsError(new ErrorInfo("sql must not be empty."));
-
-        if (!confirm)
-            return ExecuteResponse.AsError(new ErrorInfo("Set confirm=true to execute write statements."));
 
         var result = await db.ExecuteAsync(sql, cancellationToken).ConfigureAwait(false);
 
