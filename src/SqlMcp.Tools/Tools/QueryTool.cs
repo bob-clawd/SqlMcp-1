@@ -2,7 +2,6 @@ using System.ComponentModel;
 using ModelContextProtocol.Server;
 using SqlMcp.Tools.Drivers;
 using SqlMcp.Tools.Models;
-using SqlMcp.Tools.Security;
 
 namespace SqlMcp.Tools.Tools;
 
@@ -26,10 +25,6 @@ public sealed class QueryTool(IDatabaseDriver db)
     {
         if (string.IsNullOrWhiteSpace(sql))
             return QueryResponse.AsError(new ErrorInfo("sql must not be empty."));
-
-        if (SqlTokenizer.HasMultipleStatements(sql))
-            return QueryResponse.AsError(new ErrorInfo("Multi-statement queries are not allowed. Execute one statement at a time.",
-                new Dictionary<string, string> { ["sql"] = sql }));
 
         var cappedLimit = Math.Clamp(limit, 1, 10_000);
         var result = await db.QueryAsync(sql, cappedLimit, cancellationToken).ConfigureAwait(false);

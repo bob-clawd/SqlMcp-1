@@ -2,7 +2,6 @@ using System.ComponentModel;
 using ModelContextProtocol.Server;
 using SqlMcp.Tools.Drivers;
 using SqlMcp.Tools.Models;
-using SqlMcp.Tools.Security;
 
 namespace SqlMcp.Tools.Tools;
 
@@ -26,10 +25,6 @@ public sealed class ExecuteTool(IDatabaseDriver db)
     {
         if (string.IsNullOrWhiteSpace(sql))
             return ExecuteResponse.AsError(new ErrorInfo("sql must not be empty."));
-
-        if (SqlTokenizer.HasMultipleStatements(sql))
-            return ExecuteResponse.AsError(new ErrorInfo("Multi-statement queries are not allowed. Execute one statement at a time.",
-                new Dictionary<string, string> { ["sql"] = sql }));
 
         if (!confirm)
             return ExecuteResponse.AsError(new ErrorInfo("Set confirm=true to execute write statements."));

@@ -2,7 +2,6 @@ using System.ComponentModel;
 using ModelContextProtocol.Server;
 using SqlMcp.Tools.Drivers;
 using SqlMcp.Tools.Models;
-using SqlMcp.Tools.Security;
 
 namespace SqlMcp.Tools.Tools;
 
@@ -29,10 +28,6 @@ public sealed class AnalyzeQueryTool(IDatabaseDriver db)
         if (string.IsNullOrWhiteSpace(sql))
             return AnalyzeQueryResponse.AsError(new ErrorInfo("sql must not be empty."));
 
-        if (SqlTokenizer.HasMultipleStatements(sql))
-            return AnalyzeQueryResponse.AsError(new ErrorInfo("Multi-statement queries are not allowed. Analyze one statement at a time.",
-                new Dictionary<string, string> { ["sql"] = sql }));
-
         if (execute && !IsSelectStatement(sql))
             return AnalyzeQueryResponse.AsError(new ErrorInfo("execute=true is only allowed for SELECT statements. Use execute=false for plan-only analysis.",
                 new Dictionary<string, string> { ["sql"] = sql }));
@@ -48,7 +43,7 @@ public sealed class AnalyzeQueryTool(IDatabaseDriver db)
 
     private static bool IsSelectStatement(string sql)
     {
-        var tokens = SqlTokenizer.TokenizeTopLevel(sql);
-        return tokens.Count > 0 && tokens[0].Equals("SELECT", StringComparison.OrdinalIgnoreCase);
+        var trimmed = sql.TrimStart();
+        return trimmed.StartsWith("SELECT", StringComparison.OrdinalIgnoreCase);
     }
 }
