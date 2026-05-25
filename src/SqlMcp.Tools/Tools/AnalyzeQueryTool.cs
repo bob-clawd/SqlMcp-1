@@ -7,9 +7,10 @@ using SqlMcp.Tools.Security;
 namespace SqlMcp.Tools.Tools;
 
 public sealed record AnalyzeQueryResponse(
-    bool Executed,
-    bool TimedOut,
-    string Raw);
+    bool Executed = false,
+    bool TimedOut = false,
+    string? Raw = null,
+    ToolError? Error = null);
 
 [McpServerToolType]
 public sealed class AnalyzeQueryTool(IDatabaseDriver db)
@@ -23,13 +24,13 @@ public sealed class AnalyzeQueryTool(IDatabaseDriver db)
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(sql))
-            throw new ArgumentException("sql must not be empty.", nameof(sql));
+            return new AnalyzeQueryResponse(Error: new ToolError("sql must not be empty."));
 
         if (SqlTokenizer.HasMultipleStatements(sql))
-            throw new ArgumentException("Multi-statement queries are not allowed. Analyze one statement at a time.", nameof(sql));
+            return new AnalyzeQueryResponse(Error: new ToolError("Multi-statement queries are not allowed. Analyze one statement at a time."));
 
         if (execute && !IsSelectStatement(sql))
-            throw new InvalidOperationException("execute=true is only allowed for SELECT statements. Use execute=false for plan-only analysis.");
+            return new AnalyzeQueryResponse(Error: new ToolError("execute=true is only allowed for SELECT statements. Use execute=false for plan-only analysis."));
 
         var timeout = TimeSpan.FromMilliseconds(Math.Clamp(timeout_ms, 500, 60_000));
         var result = await db.AnalyzeQueryAsync(sql, execute, timeout, cancellationToken).ConfigureAwait(false);

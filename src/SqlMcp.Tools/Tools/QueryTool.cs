@@ -7,8 +7,9 @@ using SqlMcp.Tools.Security;
 namespace SqlMcp.Tools.Tools;
 
 public sealed record QueryResponse(
-    IReadOnlyList<string> Columns,
-    IReadOnlyList<IReadOnlyList<object?>> Rows);
+    IReadOnlyList<string>? Columns = null,
+    IReadOnlyList<IReadOnlyList<object?>>? Rows = null,
+    ToolError? Error = null);
 
 [McpServerToolType]
 public sealed class QueryTool(IDatabaseDriver db)
@@ -21,10 +22,10 @@ public sealed class QueryTool(IDatabaseDriver db)
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(sql))
-            throw new ArgumentException("sql must not be empty.", nameof(sql));
+            return new QueryResponse(Error: new ToolError("sql must not be empty."));
 
         if (SqlTokenizer.HasMultipleStatements(sql))
-            throw new ArgumentException("Multi-statement queries are not allowed. Execute one statement at a time.", nameof(sql));
+            return new QueryResponse(Error: new ToolError("Multi-statement queries are not allowed. Execute one statement at a time."));
 
         var cappedLimit = Math.Clamp(limit, 1, 10_000);
         var result = await db.QueryAsync(sql, cappedLimit, cancellationToken).ConfigureAwait(false);

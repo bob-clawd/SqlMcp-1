@@ -63,7 +63,7 @@ ORDER BY table_name";
 
     public async Task<TableDescription> DescribeTableAsync(string tableName, CancellationToken cancellationToken = default)
     {
-        tableName.GuardIdentifier();
+        tableName.ValidateIdentifier();
 
         await using var conn = await _dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
 

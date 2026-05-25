@@ -60,7 +60,7 @@ ORDER BY name";
 
     public async Task<TableDescription> DescribeTableAsync(string tableName, CancellationToken cancellationToken = default)
     {
-        tableName.GuardIdentifier();
+        tableName.ValidateIdentifier();
         await EnsureOpenAsync(cancellationToken).ConfigureAwait(false);
 
         var columns = new List<ColumnInfo>();

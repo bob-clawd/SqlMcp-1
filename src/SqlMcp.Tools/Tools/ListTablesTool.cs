@@ -8,7 +8,8 @@ namespace SqlMcp.Tools.Tools;
 public sealed record ListTablesResponse(
     DbDialect Dialect,
     IReadOnlyList<string> Tables,
-    IReadOnlyList<string> Views);
+    IReadOnlyList<string> Views,
+    ToolError? Error = null);
 
 [McpServerToolType]
 public sealed class ListTablesTool(IDatabaseDriver db)

@@ -60,7 +60,7 @@ internal sealed class MySqlDatabaseDriver(string connectionString) : IDatabaseDr
 
     public async Task<TableDescription> DescribeTableAsync(string tableName, CancellationToken cancellationToken = default)
     {
-        tableName.GuardIdentifier();
+        tableName.ValidateIdentifier();
 
         await using var conn = new MySqlConnection(connectionString);
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);

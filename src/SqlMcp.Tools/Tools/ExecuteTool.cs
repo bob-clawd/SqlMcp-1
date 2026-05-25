@@ -7,8 +7,9 @@ using SqlMcp.Tools.Security;
 namespace SqlMcp.Tools.Tools;
 
 public sealed record ExecuteResponse(
-    int? AffectedRows,
-    string? InsertId);
+    int? AffectedRows = null,
+    string? InsertId = null,
+    ToolError? Error = null);
 
 [McpServerToolType]
 public sealed class ExecuteTool(IDatabaseDriver db)
@@ -21,13 +22,13 @@ public sealed class ExecuteTool(IDatabaseDriver db)
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(sql))
-            throw new ArgumentException("sql must not be empty.", nameof(sql));
+            return new ExecuteResponse(Error: new ToolError("sql must not be empty."));
 
         if (SqlTokenizer.HasMultipleStatements(sql))
-            throw new ArgumentException("Multi-statement queries are not allowed. Execute one statement at a time.", nameof(sql));
+            return new ExecuteResponse(Error: new ToolError("Multi-statement queries are not allowed. Execute one statement at a time."));
 
         if (!confirm)
-            throw new InvalidOperationException("Set confirm=true to execute write statements.");
+            return new ExecuteResponse(Error: new ToolError("Set confirm=true to execute write statements."));
 
         var result = await db.ExecuteAsync(sql, cancellationToken).ConfigureAwait(false);
 
