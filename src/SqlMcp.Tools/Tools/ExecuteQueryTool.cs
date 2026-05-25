@@ -15,11 +15,10 @@ public sealed record QueryResponse(
 [McpServerToolType]
 public sealed class ExecuteQueryTool(
     IDatabaseDriver db,
-    SqlStatementClassifier classifier,
-    SqlPermissionOptions permissions)
+    SqlStatementClassifier classifier)
 {
     [McpServerTool(Name = "execute_query", Title = "Execute SQL Query")]
-    [Description("Execute a SQL statement. Read-only always allowed; write/DDL need startup flags.")]
+    [Description("Execute a SQL statement.")]
     public async Task<QueryResponse> ExecuteAsync(
         [Description("SQL to execute")] string sql,
         [Description("Max rows")] int limit = 100,
@@ -32,10 +31,6 @@ public sealed class ExecuteQueryTool(
             throw new ArgumentException("Multi-statement queries are not allowed. Execute one statement at a time.", nameof(sql));
 
         var stmtType = classifier.Classify(sql);
-        var (allowed, reason) = SqlPermissionChecker.Check(stmtType, permissions);
-        if (!allowed)
-            throw new InvalidOperationException($"Permission denied: {reason}");
-
         var isReadOnly = stmtType is SqlStatementType.Select or SqlStatementType.Show or SqlStatementType.Describe or SqlStatementType.Explain;
 
         var cappedLimit = Math.Clamp(limit, 1, 10_000);

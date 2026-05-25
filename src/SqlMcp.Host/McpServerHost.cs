@@ -22,10 +22,6 @@ public static class McpServerHost
 
         string? dbUri = null;
         var ssl = false;
-        var allowWrite = false;
-        var allowDelete = false;
-        var allowDdl = false;
-        var allowDropDatabase = false;
 
         for (var index = 0; index < args.Length; index++)
         {
@@ -50,22 +46,6 @@ public static class McpServerHost
                     ssl = true;
                     break;
 
-                case "--allow-write":
-                    allowWrite = true;
-                    break;
-
-                case "--allow-delete":
-                    allowDelete = true;
-                    break;
-
-                case "--allow-ddl":
-                    allowDdl = true;
-                    break;
-
-                case "--allow-drop-database":
-                    allowDropDatabase = true;
-                    break;
-
                 default:
                     throw new ArgumentException($"Unknown argument '{argument}'.", nameof(args));
             }
@@ -75,13 +55,6 @@ public static class McpServerHost
             throw new ArgumentException(
                 "Database connection URI is required. Use --db <connection-uri>.", nameof(args));
 
-        return new SqlMcpOptions(
-            ConnectionUri: dbUri!,
-            UseSsl: ssl,
-            Permissions: new SqlPermissionOptions(
-                AllowWrite: allowWrite,
-                AllowDelete: allowDelete,
-                AllowDdl: allowDdl,
-                AllowDropDatabase: allowDropDatabase));
+        return new SqlMcpOptions(ConnectionUri: dbUri!, UseSsl: ssl);
     }
 }

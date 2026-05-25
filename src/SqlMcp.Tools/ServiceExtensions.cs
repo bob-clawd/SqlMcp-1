@@ -16,7 +16,6 @@ public static class ServiceExtensions
 
         private IServiceCollection AddInfrastructure(SqlMcpOptions options) => services
             .AddSingleton(options)
-            .AddSingleton(options.Permissions)
             .AddSingleton<SqlStatementClassifier>()
             .AddSingleton<IDatabaseDriver>(_ => DatabaseDriverFactory.Create(options.ConnectionUri, options.UseSsl));
 
