@@ -18,13 +18,10 @@ public sealed class QueryTool(
     SqlStatementClassifier classifier,
     SqlPermissionOptions permissions)
 {
-    private const int DefaultMaxRows = 100;
-
     [McpServerTool(Name = "execute_query", Title = "Execute SQL Query")]
     [Description("Execute a SQL statement against the connected database. Read operations (SELECT/SHOW/DESCRIBE/EXPLAIN) are always allowed. Write/DDL require explicit opt-in via startup flags.")]
     public async Task<QueryResponse> ExecuteAsync(
         [Description("SQL statement to execute")] string sql,
-        [Description("Maximum rows to return for read queries (default: 100, max: 10000)")] int? max_rows = null,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(sql))
@@ -38,10 +35,9 @@ public sealed class QueryTool(
         if (!allowed)
             throw new InvalidOperationException($"Permission denied: {reason}");
 
-        var cappedMaxRows = Math.Clamp(max_rows ?? DefaultMaxRows, 1, 10_000);
         var isReadOnly = stmtType is SqlStatementType.Select or SqlStatementType.Show or SqlStatementType.Describe or SqlStatementType.Explain;
 
-        var result = await db.ExecuteQueryAsync(sql, isReadOnly, cappedMaxRows, cancellationToken).ConfigureAwait(false);
+        var result = await db.ExecuteQueryAsync(sql, isReadOnly, 100, cancellationToken).ConfigureAwait(false);
 
         return new QueryResponse(
             AffectedRows: result.AffectedRows,
