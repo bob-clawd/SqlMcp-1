@@ -156,7 +156,7 @@ ORDER BY name";
             {
                 // best-effort only
             }
-            return new QueryResult(Array.Empty<string>(), Array.Empty<IReadOnlyDictionary<string, object?>>(), affected, insertId);
+            return new QueryResult(Array.Empty<string>(), Array.Empty<IReadOnlyList<object?>>(), affected, insertId);
         }
     }
 
@@ -226,13 +226,13 @@ ORDER BY name";
     private static async Task<QueryResult> ReadResultAsync(SqliteDataReader reader, CancellationToken cancellationToken)
     {
         var columns = Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToArray();
-        var rows = new List<IReadOnlyDictionary<string, object?>>();
+        var rows = new List<IReadOnlyList<object?>>();
 
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            var row = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+            var row = new List<object?>();
             for (var i = 0; i < reader.FieldCount; i++)
-                row[columns[i]] = await reader.IsDBNullAsync(i, cancellationToken).ConfigureAwait(false) ? null : reader.GetValue(i);
+                row.Add(await reader.IsDBNullAsync(i, cancellationToken).ConfigureAwait(false) ? null : reader.GetValue(i));
 
             rows.Add(row);
         }

@@ -210,7 +210,7 @@ ORDER BY kcu.constraint_name, kcu.ordinal_position";
         else
         {
             var affected = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-            return new QueryResult(Array.Empty<string>(), Array.Empty<IReadOnlyDictionary<string, object?>>(), affected, null);
+            return new QueryResult(Array.Empty<string>(), Array.Empty<IReadOnlyList<object?>>(), affected, null);
         }
     }
 
@@ -277,15 +277,15 @@ ORDER BY kcu.constraint_name, kcu.ordinal_position";
     private static async Task<QueryResult> ReadResultAsync(NpgsqlDataReader reader, CancellationToken cancellationToken)
     {
         var columns = Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToArray();
-        var rows = new List<IReadOnlyDictionary<string, object?>>();
+        var rows = new List<IReadOnlyList<object?>>();
 
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            var row = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+            var row = new List<object?>();
             for (var i = 0; i < reader.FieldCount; i++)
             {
                 var val = await reader.IsDBNullAsync(i, cancellationToken).ConfigureAwait(false) ? null : reader.GetValue(i);
-                row[columns[i]] = val;
+                row.Add(val);
             }
             rows.Add(row);
         }

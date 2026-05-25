@@ -343,15 +343,15 @@ ORDER BY fk.name, fkc.constraint_column_id";
     private static async Task<QueryResult> ReadResultAsync(SqlDataReader reader, CancellationToken cancellationToken)
     {
         var columns = Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToArray();
-        var rows = new List<IReadOnlyDictionary<string, object?>>();
+        var rows = new List<IReadOnlyList<object?>>();
 
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            var row = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+            var row = new List<object?>();
             for (var i = 0; i < reader.FieldCount; i++)
             {
                 var val = await reader.IsDBNullAsync(i, cancellationToken).ConfigureAwait(false) ? null : reader.GetValue(i);
-                row[columns[i]] = val;
+                row.Add(val);
             }
             rows.Add(row);
         }

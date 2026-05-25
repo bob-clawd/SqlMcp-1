@@ -225,15 +225,15 @@ ORDER BY CONSTRAINT_NAME, ORDINAL_POSITION";
     private static async Task<QueryResult> ReadResultAsync(MySqlDataReader reader, CancellationToken cancellationToken)
     {
         var columns = Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToArray();
-        var rows = new List<IReadOnlyDictionary<string, object?>>();
+        var rows = new List<IReadOnlyList<object?>>();
 
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            var row = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+            var row = new List<object?>();
             for (var i = 0; i < reader.FieldCount; i++)
             {
                 var val = await reader.IsDBNullAsync(i, cancellationToken).ConfigureAwait(false) ? null : reader.GetValue(i);
-                row[columns[i]] = val;
+                row.Add(val);
             }
             rows.Add(row);
         }

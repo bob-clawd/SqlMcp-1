@@ -7,12 +7,10 @@ using SqlMcp.Tools.Security;
 namespace SqlMcp.Tools.Tools;
 
 public sealed record QueryResponse(
-    DbDialect Dialect,
-    SqlStatementType StatementType,
     int? AffectedRows,
     string? InsertId,
     IReadOnlyList<string> Columns,
-    IReadOnlyList<IReadOnlyDictionary<string, object?>> Rows);
+    IReadOnlyList<IReadOnlyList<object?>> Rows);
 
 [McpServerToolType]
 public sealed class QueryTool(
@@ -46,8 +44,6 @@ public sealed class QueryTool(
         var result = await db.ExecuteQueryAsync(sql, isReadOnly, cappedMaxRows, cancellationToken).ConfigureAwait(false);
 
         return new QueryResponse(
-            Dialect: db.Dialect,
-            StatementType: stmtType,
             AffectedRows: result.AffectedRows,
             InsertId: result.InsertId,
             Columns: result.Columns,

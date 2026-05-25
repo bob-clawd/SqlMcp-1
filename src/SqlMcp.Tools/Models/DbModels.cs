@@ -45,7 +45,7 @@ public sealed record TableDescription(
 
 public sealed record QueryResult(
     IReadOnlyList<string> Columns,
-    IReadOnlyList<IReadOnlyDictionary<string, object?>> Rows,
+    IReadOnlyList<IReadOnlyList<object?>> Rows,
     int? AffectedRows = null,
     string? InsertId = null);
 
