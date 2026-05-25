@@ -17,7 +17,6 @@ public static class HostExtensions
 
     internal static IServiceCollection Compose(this IServiceCollection services, SqlMcpOptions options) => services
         .WithSqlMcp(options)
-        .AddHostedService<DatabaseProbeService>()
         .AddMcpRuntime();
 
     private static IServiceCollection AddMcpRuntime(this IServiceCollection services)
