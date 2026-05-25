@@ -1,5 +1,4 @@
 using System.Net;
-using System.Text.RegularExpressions;
 using Npgsql;
 using SqlMcp.Tools.Models;
 using SqlMcp.Tools.Security;
@@ -200,12 +199,12 @@ ORDER BY kcu.constraint_name, kcu.ordinal_position";
     {
         await using var conn = await _dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = isReadOnly ? ApplyLimitIfMissing(sql, maxRows) : sql;
+        cmd.CommandText = sql;
 
         if (isReadOnly)
         {
             await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            return await ReadResultAsync(reader, cancellationToken).ConfigureAwait(false);
+            return await ReadResultAsync(reader, maxRows, cancellationToken).ConfigureAwait(false);
         }
         else
         {
@@ -274,12 +273,12 @@ ORDER BY kcu.constraint_name, kcu.ordinal_position";
             throw new ArgumentException($"Invalid identifier '{name}'.", nameof(name));
     }
 
-    private static async Task<QueryResult> ReadResultAsync(NpgsqlDataReader reader, CancellationToken cancellationToken)
+    private static async Task<QueryResult> ReadResultAsync(NpgsqlDataReader reader, int maxRows, CancellationToken cancellationToken)
     {
         var columns = Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToArray();
-        var rows = new List<IReadOnlyList<object?>>();
+        var rows = new List<IReadOnlyList<object?>>(capacity: Math.Min(maxRows, 1000));
 
-        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        while (rows.Count < maxRows && await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             var row = new List<object?>();
             for (var i = 0; i < reader.FieldCount; i++)
@@ -300,18 +299,4 @@ ORDER BY kcu.constraint_name, kcu.ordinal_position";
             lines.Add(reader.GetString(0));
         return string.Join("\n", lines);
     }
-
-    private static string ApplyLimitIfMissing(string sql, int maxRows)
-    {
-        if (s_limitRegex.IsMatch(sql))
-            return sql;
-
-        var trimmed = sql.TrimEnd();
-        if (trimmed.EndsWith(';'))
-            trimmed = trimmed[..^1];
-
-        return trimmed + $" LIMIT {maxRows}";
-    }
-
-    private static readonly Regex s_limitRegex = new(@"\bLIMIT\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 }

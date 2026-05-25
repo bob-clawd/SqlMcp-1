@@ -22,6 +22,7 @@ public sealed class QueryTool(
     [Description("Execute a SQL statement against the connected database. Read operations (SELECT/SHOW/DESCRIBE/EXPLAIN) are always allowed. Write/DDL require explicit opt-in via startup flags.")]
     public async Task<QueryResponse> ExecuteAsync(
         [Description("SQL statement to execute")] string sql,
+        [Description("Maximum rows to return (default: 100)")] int limit = 100,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(sql))
@@ -37,7 +38,8 @@ public sealed class QueryTool(
 
         var isReadOnly = stmtType is SqlStatementType.Select or SqlStatementType.Show or SqlStatementType.Describe or SqlStatementType.Explain;
 
-        var result = await db.ExecuteQueryAsync(sql, isReadOnly, 100, cancellationToken).ConfigureAwait(false);
+        var cappedLimit = Math.Clamp(limit, 1, 10_000);
+        var result = await db.ExecuteQueryAsync(sql, isReadOnly, cappedLimit, cancellationToken).ConfigureAwait(false);
 
         return new QueryResponse(
             AffectedRows: result.AffectedRows,

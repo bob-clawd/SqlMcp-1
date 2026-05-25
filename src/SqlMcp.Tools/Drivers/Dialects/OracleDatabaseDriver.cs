@@ -1,5 +1,4 @@
 using System.Net;
-using System.Text.RegularExpressions;
 using Oracle.ManagedDataAccess.Client;
 using SqlMcp.Tools.Models;
 using SqlMcp.Tools.Security;
@@ -196,12 +195,12 @@ ORDER BY rc.CONSTRAINT_NAME, rc.POSITION";
         await using var conn = new OracleConnection(connectionString);
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = isReadOnly ? ApplyLimitIfMissing(sql, maxRows) : sql;
+        cmd.CommandText = sql;
 
         if (isReadOnly)
         {
             await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            return await ReadResultAsync(reader, cancellationToken).ConfigureAwait(false);
+            return await ReadResultAsync(reader, maxRows, cancellationToken).ConfigureAwait(false);
         }
         else
         {
@@ -286,12 +285,12 @@ ORDER BY rc.CONSTRAINT_NAME, rc.POSITION";
         return baseType;
     }
 
-    private static async Task<QueryResult> ReadResultAsync(OracleDataReader reader, CancellationToken cancellationToken)
+    private static async Task<QueryResult> ReadResultAsync(OracleDataReader reader, int maxRows, CancellationToken cancellationToken)
     {
         var columns = Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToArray();
-        var rows = new List<IReadOnlyList<object?>>();
+        var rows = new List<IReadOnlyList<object?>>(capacity: Math.Min(maxRows, 1000));
 
-        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        while (rows.Count < maxRows && await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             var row = new List<object?>();
             for (var i = 0; i < reader.FieldCount; i++)
@@ -304,18 +303,4 @@ ORDER BY rc.CONSTRAINT_NAME, rc.POSITION";
 
         return new QueryResult(columns, rows);
     }
-
-    private static string ApplyLimitIfMissing(string sql, int maxRows)
-    {
-        if (s_fetchFirstRegex.IsMatch(sql))
-            return sql;
-
-        var trimmed = sql.TrimEnd();
-        if (trimmed.EndsWith(';'))
-            trimmed = trimmed[..^1];
-
-        return trimmed + $" FETCH FIRST {maxRows} ROWS ONLY";
-    }
-
-    private static readonly Regex s_fetchFirstRegex = new(@"\bFETCH\s+FIRST\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 }
