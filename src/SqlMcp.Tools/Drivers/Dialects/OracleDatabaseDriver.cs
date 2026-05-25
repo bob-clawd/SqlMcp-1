@@ -60,7 +60,7 @@ ORDER BY TABLE_NAME";
 
     public async Task<TableDescription> DescribeTableAsync(string tableName, CancellationToken cancellationToken = default)
     {
-        DriverExtensions.GuardIdentifier(tableName);
+        tableName.GuardIdentifier();
 
         await using var conn = new OracleConnection(connectionString);
         await conn.OpenAsync(cancellationToken).ConfigureAwait(false);

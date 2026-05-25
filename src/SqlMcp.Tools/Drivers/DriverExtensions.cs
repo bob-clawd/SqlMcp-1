@@ -9,7 +9,7 @@ internal static partial class DriverExtensions
     [GeneratedRegex("^[a-zA-Z0-9_]+$", RegexOptions.Compiled)]
     private static partial Regex IdentifierRegex();
 
-    public static void GuardIdentifier(string name)
+    public static void GuardIdentifier(this string name)
     {
         if (string.IsNullOrWhiteSpace(name) || !IdentifierRegex().IsMatch(name))
             throw new ArgumentException($"Invalid identifier '{name}'.", nameof(name));
