@@ -8,7 +8,7 @@ Agents working on a codebase only see the code — not the live database.
 When they need schema or data, they guess, leading to wrong column names, wrong types, and missed foreign keys.
 
 SqlMcp connects any MCP-compatible AI agent directly to your database.
-It is **read-only by default** and requires explicit opt-in for write operations.
+Use a read-only database user for read-only access — SqlMcp does not enforce statement-level permissions.
 
 ## Supported Databases
 
@@ -55,28 +55,21 @@ sqlmcp --db 'oracle://user:pass@localhost:1521/sid_or_service'
 | :--- | :--- | :--- |
 | `--db <uri>` | required | Database connection URI |
 | `--ssl` | false | Enable SSL/TLS for connection |
-| `--allow-write` | false | Enable INSERT and UPDATE |
-| `--allow-delete` | false | Enable DELETE |
-| `--allow-ddl` | false | Enable ALTER, CREATE, DROP, TRUNCATE |
-| `--allow-drop-database` | false | Enable DROP DATABASE |
 
 ## Available Tools
 
-| Tool | Description | Permission |
-| :--- | :--- | :--- |
-| `execute_query` | Execute a SQL statement. Read-only always allowed; write/DDL need startup flags. | Depends on statement type |
-| `analyze_query` | EXPLAIN query plan. `execute=true` for actual timings (SELECT only). | Plan-only by default |
-| `list_tables` | All tables and views in the database. | Read-only (default) |
-| `describe_table` | Full schema: columns, indexes, foreign keys. | Read-only (default) |
+| Tool | Description |
+| :--- | :--- |
+| `execute_query` | Execute a SQL statement. |
+| `analyze_query` | EXPLAIN query plan. `execute=true` for actual timings (SELECT only). |
+| `list_tables` | All tables and views in the database. |
+| `describe_table` | Full schema: columns, indexes, foreign keys. |
 
-## Security Model
+## Security
 
-- **Default**: only `SELECT`, `SHOW`, `DESCRIBE`, `EXPLAIN` are allowed.
-- **Write operations** (`INSERT`, `UPDATE`): require `--allow-write`.
-- **Delete**: requires `--allow-delete`.
-- **DDL** (`ALTER`, `CREATE`, `DROP`, `TRUNCATE`): requires `--allow-ddl`.
-- **DROP DATABASE**: requires `--allow-drop-database`.
-- **Multi-statement queries** (e.g. `SELECT 1; DROP TABLE x`): always blocked.
+The database connection user is the sole security boundary — use a read-only user for read-only access.
+
+**Multi-statement queries** (e.g. `SELECT 1; DROP TABLE x`) are always blocked regardless of user privileges.
 
 ## Development
 
