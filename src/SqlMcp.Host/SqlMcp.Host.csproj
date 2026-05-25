@@ -23,11 +23,11 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>sqlmcp</ToolCommandName>
     <Version>0.1.0</Version>
-    <Authors>bob-clawd</Authors>
+    <Authors>chrismo80</Authors>
     <Description>MCP server that gives agents accurate SQL database schema and safe data access — no more schema guessing.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/bob-clawd/SqlMcp</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/bob-clawd/SqlMcp</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/chrismo80/SqlMcp</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/chrismo80/SqlMcp</RepositoryUrl>
     <PackageOutputPath>../../.nupkg</PackageOutputPath>
     <PackageIcon>icon.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -40,9 +40,4 @@
     <None Include="..\..\LICENSE.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
-  <ItemGroup>
-    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
-      <_Parameter1>SqlMcp.Tools.Tests</_Parameter1>
-    </AssemblyAttribute>
-  </ItemGroup>
 </Project>
