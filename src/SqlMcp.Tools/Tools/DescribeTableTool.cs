@@ -6,7 +6,6 @@ using SqlMcp.Tools.Models;
 namespace SqlMcp.Tools.Tools;
 
 public sealed record DescribeTableResponse(
-    DbDialect Dialect,
     TableDescription Table);
 
 [McpServerToolType]
@@ -19,6 +18,6 @@ public sealed class DescribeTableTool(IDatabaseDriver db)
         CancellationToken cancellationToken = default)
     {
         var table = await db.DescribeTableAsync(table_name, cancellationToken).ConfigureAwait(false);
-        return new DescribeTableResponse(db.Dialect, table);
+        return new DescribeTableResponse(table);
     }
 }
