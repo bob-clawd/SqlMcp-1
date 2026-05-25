@@ -7,7 +7,8 @@ namespace SqlMcp.Tools.Tools;
 
 public sealed record ListTablesResponse(
     DbDialect Dialect,
-    IReadOnlyList<TableInfo> Tables);
+    IReadOnlyList<string> Tables,
+    IReadOnlyList<string> Views);
 
 [McpServerToolType]
 public sealed class ListTablesTool(IDatabaseDriver db)
@@ -16,7 +17,9 @@ public sealed class ListTablesTool(IDatabaseDriver db)
     [Description("List all tables and views in the database.")]
     public async Task<ListTablesResponse> ExecuteAsync(CancellationToken cancellationToken = default)
     {
-        var tables = await db.ListTablesAsync(cancellationToken).ConfigureAwait(false);
-        return new ListTablesResponse(db.Dialect, tables);
+        var all = await db.ListTablesAsync(cancellationToken).ConfigureAwait(false);
+        var tables = all.Where(t => t.Type == DbTableType.Table).Select(t => t.Name).ToArray();
+        var views = all.Where(t => t.Type == DbTableType.View).Select(t => t.Name).ToArray();
+        return new ListTablesResponse(db.Dialect, tables, views);
     }
 }
