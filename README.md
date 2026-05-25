@@ -58,19 +58,86 @@ sqlmcp --db 'oracle://user:pass@localhost:1521/sid_or_service'
 
 ## Available Tools
 
-| Tool | Description |
-| :--- | :--- |
-| `query` | Read-only SQL — SELECT, SHOW, DESCRIBE, EXPLAIN. |
-| `execute` | Write SQL — INSERT, UPDATE, DELETE, ALTER, CREATE, DROP, TRUNCATE. Requires `confirm=true`. |
-| `analyze_query` | EXPLAIN query plan. `execute=true` for actual timings (SELECT only). |
-| `list_tables` | All tables and views in the database. |
-| `describe_table` | Full schema: columns, indexes, foreign keys. |
+### `query`
+Run a read-only SQL statement.
+
+| Input | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `sql` | `string` | required | SELECT, SHOW, DESCRIBE, or EXPLAIN |
+| `limit` | `int` | `100` | Max rows to return |
+
+| Output | Type | Description |
+| :--- | :--- | :--- |
+| `columns` | `string[]` | Column names |
+| `rows` | `object[][]` | Positional row data |
+| `error` | `ErrorInfo?` | Error if the call failed |
+
+### `execute`
+Run a modifying SQL statement.
+
+| Input | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `sql` | `string` | required | INSERT, UPDATE, DELETE, ALTER, CREATE, DROP, or TRUNCATE |
+
+| Output | Type | Description |
+| :--- | :--- | :--- |
+| `affectedRows` | `int?` | Number of affected rows |
+| `insertId` | `string?` | Auto-generated ID after INSERT (driver-dependent) |
+| `error` | `ErrorInfo?` | Error if the call failed |
+
+### `analyze_query`
+EXPLAIN a query plan. Set `execute=true` for actual timings (SELECT only).
+
+| Input | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `sql` | `string` | required | SQL to analyze |
+| `execute` | `bool` | `false` | Run the query for actual timings (SELECT only) |
+| `timeout_ms` | `int` | `5000` | Timeout in milliseconds |
+
+| Output | Type | Description |
+| :--- | :--- | :--- |
+| `executed` | `bool` | Whether the query was actually executed |
+| `timedOut` | `bool` | Whether the analysis timed out |
+| `raw` | `string` | Plan output text |
+| `error` | `ErrorInfo?` | Error if the call failed |
+
+### `list_tables`
+All tables and views in the database.
+
+No input parameters.
+
+| Output | Type | Description |
+| :--- | :--- | :--- |
+| `dialect` | `string` | Database dialect name |
+| `tables` | `string[]` | Table names |
+| `views` | `string[]` | View names |
+| `error` | `ErrorInfo?` | Error if the call failed |
+
+### `describe_table`
+Full schema for a table.
+
+| Input | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `table_name` | `string` | required | Table name |
+
+| Output | Type | Description |
+| :--- | :--- | :--- |
+| `table` | `TableDescription` | Columns, indexes, foreign keys |
+| `error` | `ErrorInfo?` | Error if the call failed |
+
+`TableDescription` contains `name`, `columns` (`ColumnInfo[]`), `indexes` (`IndexInfo[]`), and `foreignKeys` (`ForeignKeyInfo[]`).
+
+### `ErrorInfo`
+Returned in the `error` field when a tool call fails.
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `message` | `string` | Human-readable error |
+| `details` | `Dictionary<string,string>?` | Structured context (parameter values, etc.) |
 
 ## Security
 
 The database connection user is the sole security boundary — use a read-only user for read-only access.
-
-**Multi-statement queries** (e.g. `SELECT 1; DROP TABLE x`) are always blocked regardless of user privileges.
 
 ## Development
 
