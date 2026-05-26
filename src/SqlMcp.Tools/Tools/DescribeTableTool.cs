@@ -25,10 +25,6 @@ public sealed class DescribeTableTool(IDatabaseDriver db)
             return DescribeTableResponse.AsError(new ErrorInfo("table_name must not be empty.",
                 new Dictionary<string, string> { ["table_name"] = table_name ?? "" }));
 
-        if (!table_name.All(c => char.IsLetterOrDigit(c) || c == '_'))
-            return DescribeTableResponse.AsError(new ErrorInfo($"Invalid table name '{table_name}'.",
-                new Dictionary<string, string> { ["table_name"] = table_name }));
-
         try
         {
             var table = await db.DescribeTableAsync(table_name, cancellationToken).ConfigureAwait(false);
