@@ -173,6 +173,12 @@ ORDER BY name";
                 lines.Add(reader.GetString(reader.GetOrdinal("detail")));
 
             var raw = string.Join("\n", lines);
+
+            if (execute)
+            {
+                raw += "\n\n(Note: SQLite does not support EXPLAIN ANALYZE. Showing plan-only output.)";
+            }
+
             return new AnalyzeResult(raw, Executed: false);
         }
         catch (OperationCanceledException)
