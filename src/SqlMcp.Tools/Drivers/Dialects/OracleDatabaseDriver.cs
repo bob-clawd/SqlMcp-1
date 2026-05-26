@@ -16,7 +16,6 @@ internal sealed class OracleDatabaseDriver(string connectionString) : IDatabaseD
         var b = new OracleConnectionStringBuilder
         {
             // (DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=localhost)(PORT=1521))(CONNECT_DATA=(SID=EE)))
-            //DataSource = $"{parsedUri.Host}:{(parsedUri.Port > 0 ? parsedUri.Port : 1521)}:{serviceName}",
             DataSource = $"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={parsedUri.Host})(PORT={(parsedUri.Port > 0 ? parsedUri.Port : 1521)}))(CONNECT_DATA=(SID={sid})))",
             UserID = string.IsNullOrEmpty(user) ? null : user,
             Password = string.IsNullOrEmpty(pass) ? null : pass,
@@ -237,6 +236,11 @@ ORDER BY rc.CONSTRAINT_NAME, rc.POSITION";
             }
 
             var raw = string.Join("\n", lines);
+            if (execute)
+            {
+                raw += "\n\n(Note: Oracle does not support EXPLAIN ANALYZE. Showing plan-only output.)";
+            }
+
             return new AnalyzeResult(raw, false);
         }
         catch (OperationCanceledException)
