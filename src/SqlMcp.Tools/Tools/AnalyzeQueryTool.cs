@@ -51,7 +51,6 @@ public sealed class AnalyzeQueryTool(IDatabaseDriver db)
 
     private static bool IsSelectStatement(string sql)
     {
-        var trimmed = sql.TrimStart();
-        return trimmed.StartsWith("SELECT", StringComparison.OrdinalIgnoreCase);
+        return sql.TrimStart().StartsWith("SELECT", StringComparison.OrdinalIgnoreCase);
     }
 }
