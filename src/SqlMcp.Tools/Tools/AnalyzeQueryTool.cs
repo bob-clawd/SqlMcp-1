@@ -28,10 +28,6 @@ public sealed class AnalyzeQueryTool(IDatabaseDriver db)
         if (string.IsNullOrWhiteSpace(sql))
             return AnalyzeQueryResponse.AsError(new ErrorInfo("sql must not be empty."));
 
-        if (execute && !IsSelectStatement(sql))
-            return AnalyzeQueryResponse.AsError(new ErrorInfo("execute=true is only allowed for SELECT statements. Use execute=false for plan-only analysis.",
-                new Dictionary<string, string> { ["sql"] = sql }));
-
         try
         {
             var timeout = TimeSpan.FromMilliseconds(Math.Clamp(timeout_ms, 500, 60_000));
@@ -49,8 +45,4 @@ public sealed class AnalyzeQueryTool(IDatabaseDriver db)
         }
     }
 
-    private static bool IsSelectStatement(string sql)
-    {
-        return sql.TrimStart().StartsWith("SELECT", StringComparison.OrdinalIgnoreCase);
-    }
 }
