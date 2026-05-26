@@ -20,7 +20,7 @@ internal sealed class MsSqlDatabaseDriver(string connectionString) : IDatabaseDr
             Password = string.IsNullOrEmpty(pass) ? null : pass,
             InitialCatalog = db,
             Encrypt = ssl,
-            TrustServerCertificate = false,
+            TrustServerCertificate = ssl,
         };
 
         if (string.IsNullOrEmpty(user) && string.IsNullOrEmpty(pass))
