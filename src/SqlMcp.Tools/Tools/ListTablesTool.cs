@@ -6,12 +6,12 @@ using SqlMcp.Tools.Models;
 namespace SqlMcp.Tools.Tools;
 
 public sealed record ListTablesResponse(
-    DbDialect Dialect,
+    string Dialect,
     IReadOnlyList<string> Tables,
     IReadOnlyList<string> Views,
     ErrorInfo? Error = null)
 {
-    public static ListTablesResponse AsError(ErrorInfo error) => new(default, [], [], error);
+    public static ListTablesResponse AsError(ErrorInfo error) => new("unknown", [], [], error);
 }
 
 [McpServerToolType]
@@ -24,6 +24,6 @@ public sealed class ListTablesTool(IDatabaseDriver db)
         var all = await db.ListTablesAsync(cancellationToken).ConfigureAwait(false);
         var tables = all.Where(t => t.Type == DbTableType.Table).Select(t => t.Name).ToArray();
         var views = all.Where(t => t.Type == DbTableType.View).Select(t => t.Name).ToArray();
-        return new ListTablesResponse(db.Dialect, tables, views);
+        return new ListTablesResponse(db.Dialect.ToString(), tables, views);
     }
 }
