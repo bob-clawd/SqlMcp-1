@@ -25,7 +25,7 @@ The driver is auto-detected from the URI scheme.
 
 ## Get It as a .NET Tool
 
-[![NuGet](https://img.shields.io/nuget/v/RoslynMcp.svg)](https://www.nuget.org/packages/SqlMcp/)
+[![NuGet](https://img.shields.io/nuget/v/SqlMcp.svg)](https://www.nuget.org/packages/SqlMcp/)
 [![.NET](https://img.shields.io/badge/.NET-10.0-blue)](https://www.nuget.org/packages/SqlMcp/)
 
 ```bash
