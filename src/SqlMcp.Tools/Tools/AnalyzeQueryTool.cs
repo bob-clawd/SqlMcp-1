@@ -32,13 +32,21 @@ public sealed class AnalyzeQueryTool(IDatabaseDriver db)
             return AnalyzeQueryResponse.AsError(new ErrorInfo("execute=true is only allowed for SELECT statements. Use execute=false for plan-only analysis.",
                 new Dictionary<string, string> { ["sql"] = sql }));
 
-        var timeout = TimeSpan.FromMilliseconds(Math.Clamp(timeout_ms, 500, 60_000));
-        var result = await db.AnalyzeQueryAsync(sql, execute, timeout, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var timeout = TimeSpan.FromMilliseconds(Math.Clamp(timeout_ms, 500, 60_000));
+            var result = await db.AnalyzeQueryAsync(sql, execute, timeout, cancellationToken).ConfigureAwait(false);
 
-        return new AnalyzeQueryResponse(
-            Executed: result.Executed,
-            TimedOut: result.TimedOut,
-            Raw: result.Raw);
+            return new AnalyzeQueryResponse(
+                Executed: result.Executed,
+                TimedOut: result.TimedOut,
+                Raw: result.Raw);
+        }
+        catch (Exception ex)
+        {
+            return AnalyzeQueryResponse.AsError(new ErrorInfo(ex.Message,
+                new Dictionary<string, string> { ["sql"] = sql }));
+        }
     }
 
     private static bool IsSelectStatement(string sql)
