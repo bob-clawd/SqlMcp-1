@@ -46,7 +46,8 @@ sqlmcp --db 'sqlite:./path/to/db.sqlite'
 sqlmcp --db 'mssql://user:pass@localhost:1433/db'
 
 # Oracle
-sqlmcp --db 'oracle://user:pass@localhost:1521/sid_or_service'
+sqlmcp --db 'oracle://user:pass@localhost:1521/service_name'
+sqlmcp --db 'oracle://user:pass@localhost:1521//sid'
 ```
 
 ## Configuration
@@ -138,9 +139,3 @@ Returned in the `error` field when a tool call fails.
 ## Security
 
 The database connection user is the sole security boundary — use a read-only user for read-only access.
-
-## Development
-
-```bash
-dotnet build SqlMcp.slnx
-```
