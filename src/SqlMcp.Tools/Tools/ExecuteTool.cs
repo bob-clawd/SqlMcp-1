@@ -7,7 +7,6 @@ namespace SqlMcp.Tools.Tools;
 
 public sealed record ExecuteResponse(
     int? AffectedRows = null,
-    string? InsertId = null,
     ErrorInfo? Error = null)
 {
     public static ExecuteResponse AsError(ErrorInfo error) => new(Error: error);
@@ -28,7 +27,7 @@ public sealed class ExecuteTool(IDatabaseDriver db)
         try
         {
             var result = await db.ExecuteAsync(sql, cancellationToken).ConfigureAwait(false);
-            return new ExecuteResponse(result.AffectedRows, result.InsertId);
+            return new ExecuteResponse(result.AffectedRows);
         }
         catch (Exception ex)
         {
