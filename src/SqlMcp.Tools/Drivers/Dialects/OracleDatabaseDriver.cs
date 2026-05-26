@@ -212,32 +212,27 @@ ORDER BY rc.CONSTRAINT_NAME, rc.POSITION";
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(timeout);
 
+        if (!execute)
+            return await AnalyzePlanOnlyAsync(stripped, conn, cts.Token).ConfigureAwait(false);
+
+        return await AnalyzeWithExecutionAsync(stripped, conn, cts.Token).ConfigureAwait(false);
+    }
+
+    private static async Task<AnalyzeResult> AnalyzePlanOnlyAsync(string sql, OracleConnection conn, CancellationToken ct)
+    {
         try
         {
-            // Oracle: EXPLAIN PLAN FOR <query> then read plan via DBMS_XPLAN.DISPLAY.
             await using (var planCmd = conn.CreateCommand())
             {
-                planCmd.CommandText = $"EXPLAIN PLAN FOR {stripped}";
-                planCmd.CommandTimeout = (int)Math.Ceiling(timeout.TotalSeconds);
-                await planCmd.ExecuteNonQueryAsync(cts.Token).ConfigureAwait(false);
+                planCmd.CommandText = $"EXPLAIN PLAN FOR {sql}";
+                await planCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
             }
 
             await using var displayCmd = conn.CreateCommand();
             displayCmd.CommandText = "SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY())";
-            displayCmd.CommandTimeout = (int)Math.Ceiling(timeout.TotalSeconds);
 
-            await using var reader = await displayCmd.ExecuteReaderAsync(cts.Token).ConfigureAwait(false);
-            var lines = new List<string>();
-            while (await reader.ReadAsync(cts.Token).ConfigureAwait(false))
-            {
-                for (var i = 0; i < reader.FieldCount; i++)
-                {
-                    if (!await reader.IsDBNullAsync(i, cts.Token).ConfigureAwait(false))
-                        lines.Add(reader.GetString(i));
-                }
-            }
-
-            var raw = string.Join("\n", lines);
+            await using var reader = await displayCmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+            var raw = await ReadPlanLinesAsync(reader, ct).ConfigureAwait(false);
             return new AnalyzeResult(raw, false);
         }
         catch (OperationCanceledException)
@@ -248,6 +243,61 @@ ORDER BY rc.CONSTRAINT_NAME, rc.POSITION";
         {
             return new AnalyzeResult(string.Empty, false, TimedOut: true);
         }
+    }
+
+    private static async Task<AnalyzeResult> AnalyzeWithExecutionAsync(string sql, OracleConnection conn, CancellationToken ct)
+    {
+        // Inject GATHER_PLAN_STATISTICS hint so Oracle captures row-source stats.
+        var hinted = InjectGatherPlanStatistics(sql);
+
+        try
+        {
+            // Execute the query so actual stats land in the cursor cache.
+            await using var execCmd = conn.CreateCommand();
+            execCmd.CommandText = hinted;
+            await using var execReader = await execCmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+            while (await execReader.ReadAsync(ct).ConfigureAwait(false)) { }
+
+            // Retrieve the actual execution plan with row-source statistics.
+            await using var displayCmd = conn.CreateCommand();
+            displayCmd.CommandText = "SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR(NULL, NULL, 'ALLSTATS LAST'))";
+
+            await using var planReader = await displayCmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+            var raw = await ReadPlanLinesAsync(planReader, ct).ConfigureAwait(false);
+            return new AnalyzeResult(raw, true);
+        }
+        catch (OperationCanceledException)
+        {
+            return new AnalyzeResult(string.Empty, true, TimedOut: true);
+        }
+        catch (OracleException ex) when (ex.Number == 1013) // ORA-01013: user requested cancel
+        {
+            return new AnalyzeResult(string.Empty, true, TimedOut: true);
+        }
+    }
+
+    private static async Task<string> ReadPlanLinesAsync(OracleDataReader reader, CancellationToken ct)
+    {
+        var lines = new List<string>();
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            for (var i = 0; i < reader.FieldCount; i++)
+            {
+                if (!await reader.IsDBNullAsync(i, ct).ConfigureAwait(false))
+                    lines.Add(reader.GetString(i));
+            }
+        }
+        return string.Join("\n", lines);
+    }
+
+    private static string InjectGatherPlanStatistics(string sql)
+    {
+        // Insert the hint after the first SELECT keyword.
+        var idx = sql.IndexOf("SELECT", StringComparison.OrdinalIgnoreCase);
+        if (idx < 0)
+            return sql;
+
+        return sql[..idx] + "SELECT /*+ GATHER_PLAN_STATISTICS */" + sql[(idx + 6)..];
     }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
