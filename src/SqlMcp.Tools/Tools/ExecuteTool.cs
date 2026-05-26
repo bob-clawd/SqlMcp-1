@@ -24,15 +24,13 @@ public sealed class ExecuteTool(IDatabaseDriver db)
         if (string.IsNullOrWhiteSpace(sql))
             return ExecuteResponse.AsError(new ErrorInfo("sql must not be empty."));
 
-        try
-        {
-            var result = await db.ExecuteAsync(sql, cancellationToken).ConfigureAwait(false);
-            return new ExecuteResponse(result.AffectedRows);
-        }
-        catch (Exception ex)
-        {
-            return ExecuteResponse.AsError(new ErrorInfo(ex.Message,
-                new Dictionary<string, string> { ["sql"] = sql }));
-        }
+        return await ToolHelper.RunAsync(
+            async () =>
+            {
+                var result = await db.ExecuteAsync(sql, cancellationToken).ConfigureAwait(false);
+                return new ExecuteResponse(result.AffectedRows);
+            },
+            error => ExecuteResponse.AsError(error),
+            new Dictionary<string, string> { ["sql"] = sql });
     }
 }

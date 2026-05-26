@@ -28,21 +28,19 @@ public sealed class AnalyzeQueryTool(IDatabaseDriver db)
         if (string.IsNullOrWhiteSpace(sql))
             return AnalyzeQueryResponse.AsError(new ErrorInfo("sql must not be empty."));
 
-        try
-        {
-            var timeout = TimeSpan.FromMilliseconds(Math.Clamp(timeout_ms, 500, 60_000));
-            var result = await db.AnalyzeQueryAsync(sql, execute, timeout, cancellationToken).ConfigureAwait(false);
+        return await ToolHelper.RunAsync(
+            async () =>
+            {
+                var timeout = TimeSpan.FromMilliseconds(Math.Clamp(timeout_ms, 500, 60_000));
+                var result = await db.AnalyzeQueryAsync(sql, execute, timeout, cancellationToken).ConfigureAwait(false);
 
-            return new AnalyzeQueryResponse(
-                Executed: result.Executed,
-                TimedOut: result.TimedOut,
-                Raw: result.Raw);
-        }
-        catch (Exception ex)
-        {
-            return AnalyzeQueryResponse.AsError(new ErrorInfo(ex.Message,
-                new Dictionary<string, string> { ["sql"] = sql }));
-        }
+                return new AnalyzeQueryResponse(
+                    Executed: result.Executed,
+                    TimedOut: result.TimedOut,
+                    Raw: result.Raw);
+            },
+            error => AnalyzeQueryResponse.AsError(error),
+            new Dictionary<string, string> { ["sql"] = sql });
     }
 
 }

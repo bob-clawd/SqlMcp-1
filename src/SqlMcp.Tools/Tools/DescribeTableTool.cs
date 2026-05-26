@@ -29,15 +29,13 @@ public sealed class DescribeTableTool(IDatabaseDriver db)
             return DescribeTableResponse.AsError(new ErrorInfo($"Invalid table name '{table_name}'.",
                 new Dictionary<string, string> { ["table_name"] = table_name }));
 
-        try
-        {
-            var table = await db.DescribeTableAsync(table_name, cancellationToken).ConfigureAwait(false);
-            return new DescribeTableResponse(table);
-        }
-        catch (Exception ex)
-        {
-            return DescribeTableResponse.AsError(new ErrorInfo(ex.Message,
-                new Dictionary<string, string> { ["table_name"] = table_name }));
-        }
+        return await ToolHelper.RunAsync(
+            async () =>
+            {
+                var table = await db.DescribeTableAsync(table_name, cancellationToken).ConfigureAwait(false);
+                return new DescribeTableResponse(table);
+            },
+            error => DescribeTableResponse.AsError(error),
+            new Dictionary<string, string> { ["table_name"] = table_name });
     }
 }

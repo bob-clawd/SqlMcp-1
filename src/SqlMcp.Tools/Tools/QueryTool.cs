@@ -31,33 +31,31 @@ public sealed class QueryTool(IDatabaseDriver db)
         if (string.IsNullOrWhiteSpace(sql))
             return QueryResponse.AsError(new ErrorInfo("sql must not be empty."));
 
-        try
-        {
-            var result = await db.QueryAsync(sql, int.MaxValue, cancellationToken).ConfigureAwait(false);
-            var count = result.Rows.Count;
-
-            if (count <= AutoExportThreshold)
+        return await ToolHelper.RunAsync(
+            async () =>
             {
+                var result = await db.QueryAsync(sql, int.MaxValue, cancellationToken).ConfigureAwait(false);
+                var count = result.Rows.Count;
+
+                if (count <= AutoExportThreshold)
+                {
+                    return new QueryResponse(
+                        Columns: result.Columns,
+                        Rows: result.Rows,
+                        RowCount: count);
+                }
+
+                // Too large for inline — export to CSV file instead.
+                var csv = ToCsv(result.Columns, result.Rows);
+                await File.WriteAllTextAsync(ExportFileName, csv, cancellationToken).ConfigureAwait(false);
+
                 return new QueryResponse(
                     Columns: result.Columns,
-                    Rows: result.Rows,
-                    RowCount: count);
-            }
-
-            // Too large for inline — export to CSV file instead.
-            var csv = ToCsv(result.Columns, result.Rows);
-            await File.WriteAllTextAsync(ExportFileName, csv, cancellationToken).ConfigureAwait(false);
-
-            return new QueryResponse(
-                Columns: result.Columns,
-                RowCount: count,
-                FilePath: ExportFileName);
-        }
-        catch (Exception ex)
-        {
-            return QueryResponse.AsError(new ErrorInfo(ex.Message,
-                new Dictionary<string, string> { ["sql"] = sql }));
-        }
+                    RowCount: count,
+                    FilePath: ExportFileName);
+            },
+            error => QueryResponse.AsError(error),
+            new Dictionary<string, string> { ["sql"] = sql });
     }
 
     private static string ToCsv(IReadOnlyList<string> columns, IReadOnlyList<IReadOnlyList<object?>> rows)
