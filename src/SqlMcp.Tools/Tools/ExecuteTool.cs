@@ -25,8 +25,15 @@ public sealed class ExecuteTool(IDatabaseDriver db)
         if (string.IsNullOrWhiteSpace(sql))
             return ExecuteResponse.AsError(new ErrorInfo("sql must not be empty."));
 
-        var result = await db.ExecuteAsync(sql, cancellationToken).ConfigureAwait(false);
-
-        return new ExecuteResponse(result.AffectedRows, result.InsertId);
+        try
+        {
+            var result = await db.ExecuteAsync(sql, cancellationToken).ConfigureAwait(false);
+            return new ExecuteResponse(result.AffectedRows, result.InsertId);
+        }
+        catch (Exception ex)
+        {
+            return ExecuteResponse.AsError(new ErrorInfo(ex.Message,
+                new Dictionary<string, string> { ["sql"] = sql }));
+        }
     }
 }

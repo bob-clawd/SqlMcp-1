@@ -26,9 +26,16 @@ public sealed class QueryTool(IDatabaseDriver db)
         if (string.IsNullOrWhiteSpace(sql))
             return QueryResponse.AsError(new ErrorInfo("sql must not be empty."));
 
-        var cappedLimit = Math.Clamp(limit, 1, 10_000);
-        var result = await db.QueryAsync(sql, cappedLimit, cancellationToken).ConfigureAwait(false);
-
-        return new QueryResponse(result.Columns, result.Rows);
+        try
+        {
+            var cappedLimit = Math.Clamp(limit, 1, 10_000);
+            var result = await db.QueryAsync(sql, cappedLimit, cancellationToken).ConfigureAwait(false);
+            return new QueryResponse(result.Columns, result.Rows);
+        }
+        catch (Exception ex)
+        {
+            return QueryResponse.AsError(new ErrorInfo(ex.Message,
+                new Dictionary<string, string> { ["sql"] = sql }));
+        }
     }
 }
