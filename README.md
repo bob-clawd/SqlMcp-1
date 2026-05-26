@@ -60,20 +60,27 @@ sqlmcp --db 'oracle://user:pass@localhost:1521//sid'
 ## Available Tools
 
 ### `query`
+
 Run a read-only SQL statement.
 
 | Input | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
 | `sql` | `string` | required | SELECT, SHOW, DESCRIBE, or EXPLAIN |
-| `limit` | `int` | `100` | Max rows to return |
+
+> [!TIP]
+> Large result sets (>100 rows) are automatically written to CSV file `query_result.csv` instead of returned inline.
+> The tool signals this by omitting `rows` and setting `filePath` instead.
 
 | Output | Type | Description |
 | :--- | :--- | :--- |
 | `columns` | `string[]` | Column names |
-| `rows` | `object[][]` | Positional row data |
+| `rows` | `object[][]` | Positional row data (only when ≤100 rows) |
+| `rowCount` | `int` | Total number of rows returned |
+| `filePath` | `string?` | Path to CSV file when result was too large for inline delivery |
 | `error` | `ErrorInfo?` | Error if the call failed |
 
 ### `execute`
+
 Run a modifying SQL statement.
 
 | Input | Type | Default | Description |
@@ -82,11 +89,11 @@ Run a modifying SQL statement.
 
 | Output | Type | Description |
 | :--- | :--- | :--- |
-| `affectedRows` | `int?` | Number of affected rows |
-| `insertId` | `string?` | Auto-generated ID after INSERT (driver-dependent) |
+| `affectedRows` | `int` | Number of affected rows |
 | `error` | `ErrorInfo?` | Error if the call failed |
 
 ### `analyze_query`
+
 EXPLAIN a query plan. Set `execute=true` for actual timings (SELECT only).
 
 | Input | Type | Default | Description |
@@ -103,6 +110,7 @@ EXPLAIN a query plan. Set `execute=true` for actual timings (SELECT only).
 | `error` | `ErrorInfo?` | Error if the call failed |
 
 ### `list_tables`
+
 All tables and views in the database.
 
 No input parameters.
@@ -115,6 +123,7 @@ No input parameters.
 | `error` | `ErrorInfo?` | Error if the call failed |
 
 ### `describe_table`
+
 Full schema for a table.
 
 | Input | Type | Default | Description |
@@ -129,6 +138,7 @@ Full schema for a table.
 `TableDescription` contains `name`, `columns` (`ColumnInfo[]`), `indexes` (`IndexInfo[]`), and `foreignKeys` (`ForeignKeyInfo[]`).
 
 ### `ErrorInfo`
+
 Returned in the `error` field when a tool call fails.
 
 | Field | Type | Description |

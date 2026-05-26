@@ -48,8 +48,7 @@ public sealed record QueryResult(
     IReadOnlyList<IReadOnlyList<object?>> Rows);
 
 public sealed record ExecutionResult(
-    int? AffectedRows,
-    string? InsertId);
+    int? AffectedRows);
 
 public sealed record AnalyzeResult(
     string Raw,

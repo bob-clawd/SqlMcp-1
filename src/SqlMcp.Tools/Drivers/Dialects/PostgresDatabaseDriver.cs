@@ -200,7 +200,7 @@ ORDER BY kcu.constraint_name, kcu.ordinal_position";
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = sql;
         var affected = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        return new ExecutionResult(affected, null);
+        return new ExecutionResult(affected);
     }
 
     public async Task<AnalyzeResult> AnalyzeQueryAsync(string sql, bool execute, TimeSpan timeout, CancellationToken cancellationToken = default)

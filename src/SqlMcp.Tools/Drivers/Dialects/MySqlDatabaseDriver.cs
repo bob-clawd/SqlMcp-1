@@ -145,20 +145,7 @@ ORDER BY CONSTRAINT_NAME, ORDINAL_POSITION";
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = sql;
         var affected = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        string? insertId = null;
-        try
-        {
-            await using var idCmd = conn.CreateCommand();
-            idCmd.CommandText = "SELECT LAST_INSERT_ID()";
-            var id = await idCmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-            if (id is not null && long.TryParse(id.ToString(), out var parsed) && parsed > 0)
-                insertId = parsed.ToString();
-        }
-        catch
-        {
-            // best-effort only
-        }
-        return new ExecutionResult(affected, insertId);
+        return new ExecutionResult(affected);
     }
 
     public async Task<AnalyzeResult> AnalyzeQueryAsync(string sql, bool execute, TimeSpan timeout, CancellationToken cancellationToken = default)
