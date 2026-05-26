@@ -8,14 +8,17 @@ internal sealed class OracleDatabaseDriver(string connectionString) : IDatabaseD
     public static IDatabaseDriver Create(string uri, bool ssl)
     {
         var parsedUri = new Uri(uri);
-        var serviceName = parsedUri.AbsolutePath.Trim('/');
         var userInfo = parsedUri.UserInfo.Split(':', 2);
         var user = WebUtility.UrlDecode(userInfo.ElementAtOrDefault(0) ?? "");
         var pass = WebUtility.UrlDecode(userInfo.ElementAtOrDefault(1) ?? "");
 
+        var connectData = parsedUri.AbsolutePath.StartsWith("//") ?
+            $"SID={parsedUri.AbsolutePath.Trim('/')}" :
+            $"SERVICE_NAME={parsedUri.AbsolutePath.Trim('/')}";
+        
         var b = new OracleConnectionStringBuilder
         {
-            DataSource = $"{parsedUri.Host}:{(parsedUri.Port > 0 ? parsedUri.Port : 1521)}/{serviceName}",
+            DataSource = $"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={parsedUri.Host})(PORT={(parsedUri.Port > 0 ? parsedUri.Port : 1521)}))(CONNECT_DATA=({connectData})))",
             UserID = string.IsNullOrEmpty(user) ? null : user,
             Password = string.IsNullOrEmpty(pass) ? null : pass,
         };

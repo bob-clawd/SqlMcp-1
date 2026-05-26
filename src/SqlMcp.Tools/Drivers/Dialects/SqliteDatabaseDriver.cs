@@ -21,7 +21,7 @@ internal sealed class SqliteDatabaseDriver : IDatabaseDriver
 
     private readonly SqliteConnection _connection;
 
-    public SqliteDatabaseDriver(string filePath)
+    private SqliteDatabaseDriver(string filePath)
     {
         // Allow a plain path. SQLite also supports "Data Source=:memory:" etc.
         var cs = filePath.Contains('=')
