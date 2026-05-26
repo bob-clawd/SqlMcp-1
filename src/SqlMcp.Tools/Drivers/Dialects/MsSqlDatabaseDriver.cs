@@ -244,17 +244,7 @@ ORDER BY fk.name, fkc.constraint_column_id";
                     queryCmd.CommandTimeout = (int)Math.Ceiling(timeout.TotalSeconds);
 
                     await using var reader = await queryCmd.ExecuteReaderAsync(cts.Token).ConfigureAwait(false);
-                    var lines = new List<string>();
-                    do
-                    {
-                        while (await reader.ReadAsync(cts.Token).ConfigureAwait(false))
-                        {
-                            if (!await reader.IsDBNullAsync(0, cts.Token).ConfigureAwait(false))
-                                lines.Add(reader.GetString(0));
-                        }
-                    } while (await reader.NextResultAsync(cts.Token).ConfigureAwait(false));
-
-                    var raw = string.Join("\n", lines);
+                    var raw = await ReadStatisticsProfileAsync(reader, cancellationToken).ConfigureAwait(false);
                     return new AnalyzeResult(raw, true);
                 }
                 finally
@@ -310,6 +300,40 @@ ORDER BY fk.name, fkc.constraint_column_id";
     }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+
+    /// <summary>
+    /// Reads all result sets and columns from STATISTICS PROFILE output.
+    /// Captures column headers + row values as structured text so the LLM
+    /// can see actual Rows, Executes, EstimateRows, Warnings and more.
+    /// </summary>
+    private static async Task<string> ReadStatisticsProfileAsync(SqlDataReader reader, CancellationToken cancellationToken)
+    {
+        var sb = new System.Text.StringBuilder();
+
+        do
+        {
+            // Write column headers for this result set.
+            var cols = Enumerable.Range(0, reader.FieldCount)
+                .Select(reader.GetName)
+                .ToArray();
+            sb.AppendLine(string.Join("\t", cols));
+
+            var rows = 0;
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                var vals = new string[reader.FieldCount];
+                for (var i = 0; i < reader.FieldCount; i++)
+                    vals[i] = reader.GetValue(i)?.ToString() ?? "NULL";
+                sb.AppendLine(string.Join("\t", vals));
+                rows++;
+            }
+
+            if (rows == 0)
+                sb.AppendLine("(no rows)");
+        } while (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false));
+
+        return sb.ToString();
+    }
 
     private static string BuildDataType(string baseType, int? maxLength)
     {
